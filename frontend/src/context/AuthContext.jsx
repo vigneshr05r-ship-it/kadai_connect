@@ -49,6 +49,12 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem('kc_token');
   };
 
+  const updateUser = (newData) => {
+    const updated = { ...user, ...newData };
+    setUser(updated);
+    localStorage.setItem('kc_session', JSON.stringify(updated));
+  };
+
   const apiFetch = async (url, options = {}) => {
     const isFormData = options.body instanceof FormData;
     const headers = {
@@ -86,7 +92,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, loading, login, logout, apiFetch }}>
+    <AuthContext.Provider value={{ user, token, loading, login, logout, updateUser, apiFetch }}>
       {children}
     </AuthContext.Provider>
   );

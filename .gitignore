@@ -1,11 +1,20 @@
-# Django
-*.pyc
-__pycache__/
-db.sqlite3
+# Node / Frontend
+node_modules/
+frontend/dist/
+frontend/.env
+frontend/.env.local
+frontend/.env.production
+frontend/.env.production.local
+frontend/.env.*.local
 backend/media/
 backend/static/
 backend/.env
 backend/venv/
+
+# Firebase (NEVER commit this)
+backend/firebase-adminsdk.json
+firebase-adminsdk.json
+*.json.key
 
 # Node / Frontend
 node_modules/
@@ -13,6 +22,7 @@ frontend/dist/
 frontend/.env
 frontend/.env.local
 frontend/.env.production.local
+frontend/.env.*.local
 
 # IDEs
 .vscode/
@@ -21,3 +31,10 @@ frontend/.env.production.local
 # OS
 .DS_Store
 Thumbs.db
+
+# Logs & temp files
+server_log.txt
+crash.html
+test.txt
+*.log
+backend/scratch/

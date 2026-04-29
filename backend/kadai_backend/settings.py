@@ -1,4 +1,5 @@
 import os
+import json
 from pathlib import Path
 from datetime import timedelta
 
@@ -34,6 +35,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'corsheaders',
     'rest_framework_simplejwt',
+    'rest_framework_simplejwt.token_blacklist',
     'users',
     'stores',
     'products',
@@ -41,10 +43,12 @@ INSTALLED_APPS = [
     'delivery',
     'ai_module',
     'services',
+    'notifications',
 ]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',  # WhiteNoise for static files
     'django.contrib.sessions.middleware.SessionMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -74,18 +78,18 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'kadai_backend.wsgi.application'
 
-# Database
-# https://docs.djangoproject.com/en/stable/ref/settings/#databases
+# Database — MySQL via individual env vars (Aiven or local)
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': os.environ.get('DB_NAME', 'kadai_connect'),
         'USER': os.environ.get('DB_USER', 'root'),
-        'PASSWORD': os.environ.get('DB_PASSWORD', 'Revathi@04'),
+        'PASSWORD': os.environ.get('DB_PASSWORD', ''),
         'HOST': os.environ.get('DB_HOST', 'localhost'),
         'PORT': os.environ.get('DB_PORT', '3306'),
         'OPTIONS': {
             'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
+            'charset': 'utf8mb4',
         }
     }
 }
@@ -102,13 +106,16 @@ TIME_ZONE = 'UTC'
 USE_I18N = True
 USE_TZ = True
 
-STATIC_URL = 'static/'
+STATIC_URL = '/static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # CORS
-CORS_ALLOW_ALL_ORIGINS = DEBUG  # Only allow all in development
+CORS_ALLOW_ALL_ORIGINS = DEBUG
 if not DEBUG:
     CORS_ALLOWED_ORIGINS = os.environ.get('CORS_ALLOWED_ORIGINS', '').split(',')
 
@@ -138,3 +145,16 @@ SIMPLE_JWT = {
 }
 
 AUTH_USER_MODEL = 'users.User'
+
+# Firebase Integration
+# In production, store the JSON content as FIREBASE_CREDENTIALS_JSON env var
+# In development, use the local file
+_firebase_creds_json = os.environ.get('FIREBASE_CREDENTIALS_JSON')
+if _firebase_creds_json:
+    # Production: credentials stored as env var (JSON string)
+    FIREBASE_CREDENTIALS = json.loads(_firebase_creds_json)
+    FIREBASE_SERVICE_ACCOUNT_KEY = None  # signal to use dict instead of file
+else:
+    # Development: use local file
+    FIREBASE_CREDENTIALS = None
+    FIREBASE_SERVICE_ACCOUNT_KEY = os.path.join(BASE_DIR, 'firebase-adminsdk.json')

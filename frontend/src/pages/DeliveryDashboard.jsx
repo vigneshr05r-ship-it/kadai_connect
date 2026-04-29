@@ -38,9 +38,11 @@ import {
   Bell
 } from 'lucide-react';
 
-import LeafletMapView from '../components/LeafletMapView';
-import { optimizeRoute, MOCK_STOPS, SHOP_ORIGIN } from '../services/routeService';
-import { LocationSimulator } from '../services/locationSimulator';
+import DeliveryMap from '../components/DeliveryMap';
+import NotificationPanel from '../components/NotificationPanel';
+// We no longer need mock routing service
+// import { optimizeRoute, MOCK_STOPS, SHOP_ORIGIN } from '../services/routeService';
+// import { LocationSimulator } from '../services/locationSimulator';
 
 const GLASS = {
   background: 'rgba(255, 255, 255, 0.85)',
@@ -69,7 +71,7 @@ function Toast({ msg, visible }) {
 export default function DeliveryDashboard() {
   const { t, i18n } = useTranslation();
   const isTa = i18n.language === 'ta';
-  const { user, logout, apiFetch } = useAuth();
+  const { user, logout, apiFetch, updateUser } = useAuth();
   const navigate = useNavigate();
   const [section, setSection] = useState('active'); 
   const [profileView, setProfileView] = useState('menu'); 
@@ -77,12 +79,50 @@ export default function DeliveryDashboard() {
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
   const [isOnline, setIsOnline] = useState(true);
   
+  const [routeStats, setRouteStats] = useState({ distance: 0, duration: 0 });
+  const [driverPos, setDriverPos] = useState(null);
   const [optimizedStops, setOptimizedStops] = useState([]);
-  const [routePolyline, setRoutePolyline] = useState(null);
-  const [driverPos, setDriverPos] = useState(SHOP_ORIGIN);
-  const [simulator, setSimulator] = useState(null);
+  
+  // Real Geolocation Tracking
+  useEffect(() => {
+    if (!isOnline) return;
+    
+    let watchId;
+    let lastSentTime = 0;
+    
+    if (navigator.geolocation) {
+      watchId = navigator.geolocation.watchPosition(
+        (position) => {
+          const lat = position.coords.latitude;
+          const lng = position.coords.longitude;
+          const newPos = { lat, lng };
+          setDriverPos(newPos);
+          
+          // Throttle API calls to every 5 seconds minimum
+          const now = Date.now();
+          if (now - lastSentTime > 5000) {
+            apiFetch('/api/delivery/update_location/', {
+              method: 'POST',
+              body: JSON.stringify({ lat, lng })
+            }).catch(() => {});
+            lastSentTime = now;
+          }
+        },
+        (error) => {
+          console.error("GPS Error:", error);
+        },
+        { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 }
+      );
+    } else {
+      showToast('Geolocation is not supported by your browser');
+    }
+    
+    return () => {
+      if (watchId) navigator.geolocation.clearWatch(watchId);
+    };
+  }, [isOnline]);
 
-  const [upcoming, setUpcoming] = useState([]); 
+  const [upcoming, setUpcoming] = useState([]);  
   const [toast, setToast] = useState({ msg: '', visible: false });
   const [loading, setLoading] = useState(true);
 
@@ -93,6 +133,7 @@ export default function DeliveryDashboard() {
   // STATUS SELECTION STATE
   const [showStatusModal, setShowStatusModal] = useState(false);
   const [activeTripToComplete, setActiveTripToComplete] = useState(null);
+  const [notificationOpen, setNotificationOpen] = useState(false);
 
   // Profile Form States
   const [profileData, setProfileData] = useState({
@@ -135,6 +176,13 @@ export default function DeliveryDashboard() {
     if (!user) return;
     setLoading(true);
     try {
+      // Also fetch fresh user data to ensure profile is sync'd with DB
+      const uResp = await apiFetch('/api/users/me/');
+      if (uResp.ok) {
+        const freshUser = await uResp.json();
+        updateUser(freshUser);
+      }
+
       const resp = await apiFetch('/api/delivery/');
       if (resp?.ok) {
         const raw = await resp.json();
@@ -153,25 +201,22 @@ export default function DeliveryDashboard() {
           pickupAddress: t.pickup_address,
           payout: 45 + Math.floor(Math.random() * 20),
           status: t.status,
-          lat: t.current_lat || 13.04 + (Math.random() * 0.02),
-          lng: t.current_lng || 80.23 + (Math.random() * 0.02),
-          partner: t.partner
+          pickup_coords: t.pickup_coords,
+          delivery_coords: t.delivery_coords,
+          lat: t.current_lat,
+          lng: t.current_lng,
+          partner: t.partner,
+          date: t.created_at ? new Date(t.created_at).toLocaleDateString() : 'N/A',
+          time: t.created_at ? new Date(t.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'N/A'
         }));
 
         setUpcoming(mapped.filter(m => m.status === 'available'));
-        const active = mapped.filter(m => m.status === 'assigned' || m.status === 'picked_up');
+        const active = mapped.filter(m => m.status === 'assigned' || m.status === 'picked_up' || m.status === 'returning_to_store');
         setOptimizedStops(active);
-        setTripHistory(mapped.filter(m => m.status === 'delivered' || m.status === 'cancelled'));
+        setTripHistory(mapped.filter(m => m.status === 'delivered' || m.status === 'returned_to_store' || m.status === 'cancelled'));
+        console.log("Trip History:", mapped.filter(m => m.status === 'delivered' || m.status === 'returned_to_store' || m.status === 'cancelled'));
         setTotalEarnings(mapped.filter(m => m.status === 'delivered').reduce((s, o) => s + o.payout, 0));
 
-        if (active.length > 0) {
-          const res = await optimizeRoute(SHOP_ORIGIN, active);
-          setRoutePolyline(res.polyline);
-          if (simulator) simulator.stop();
-          const sim = new LocationSimulator(res.polyline, (newPos) => setDriverPos(newPos));
-          sim.start();
-          setSimulator(sim);
-        }
       }
     } catch (e) {
       console.error("Delivery fetch error", e);
@@ -189,9 +234,8 @@ export default function DeliveryDashboard() {
 
     return () => {
       window.removeEventListener('resize', handleResize);
-      if (simulator) simulator.stop();
     };
-  }, [user]);
+  }, []);
 
   const showToast = (msg) => { setToast({ msg, visible: true }); setTimeout(() => setToast(t => ({ ...t, visible: false })), 3000); };
 
@@ -222,12 +266,24 @@ export default function DeliveryDashboard() {
   };
 
   const handleStatusSubmit = async (status) => {
-    if (!activeTripToComplete) return;
+    if (!activeTripToComplete && status !== 'FinalizeReturn') return;
+    
+    // special case for finalizing return directly from button
+    const tripId = activeTripToComplete ? activeTripToComplete.id : null; 
+    // We need to find the trip if we're finalizing from button
+    const finalTripId = tripId || optimizedStops.find(s => s.status === 'returning_to_store')?.id;
+
+    if (!finalTripId) return;
+
+    const backendStatus = status === 'Delivered' ? 'delivered' : 
+                          status === 'Returned' ? 'returning_to_store' : 
+                          status === 'FinalizeReturn' ? 'returned_to_store' :
+                          status === 'picked_up' ? 'picked_up' : 'cancelled';
 
     try {
-      const resp = await apiFetch(`/api/delivery/${activeTripToComplete.id}/update_status/`, {
+      const resp = await apiFetch(`/api/delivery/${finalTripId}/update_status/`, {
         method: 'POST',
-        body: JSON.stringify({ status: status === 'Delivered' ? 'delivered' : 'picked_up' })
+        body: JSON.stringify({ status: backendStatus })
       });
       if (resp?.ok) {
         showToast(isTa ? `✅ நிலை புதுப்பிக்கப்பட்டது!` : `✅ Status Updated!`);
@@ -254,6 +310,8 @@ export default function DeliveryDashboard() {
         })
       });
       if (resp?.ok) {
+        const updatedUser = await resp.json();
+        updateUser(updatedUser);
         showToast(isTa ? `✅ சுயவிவரம் வெற்றிகரமாக புதுப்பிக்கப்பட்டது!` : `✅ Profile successfully updated!`);
         setProfileView('menu');
       } else {
@@ -275,6 +333,8 @@ export default function DeliveryDashboard() {
         })
       });
       if (resp?.ok) {
+        const updatedUser = await resp.json();
+        updateUser(updatedUser);
         showToast(isTa ? `✅ வாகன விவரங்கள் சேமிக்கப்பட்டது!` : `✅ Vehicle details saved!`);
         setProfileView('menu');
       } else {
@@ -314,7 +374,7 @@ export default function DeliveryDashboard() {
   const shareTripOnWhatsApp = (trip) => {
     const msg = `📦 *Kadai Connect Delivery Report*\n\n` +
                 `*Trip ID:* KC-${trip.id.toString().slice(-6)}\n` +
-                `*Status:* ${trip.status === 'Delivered' ? '✅ Delivered' : '❌ ' + trip.status}\n` +
+                `*Status:* ${trip.status === 'delivered' ? '✅ Delivered' : trip.status === 'returned_to_store' ? '🔄 Returned' : '❌ ' + trip.status}\n` +
                 `*Customer:* ${trip.customerName}\n` +
                 `*Shop:* ${trip.shopName}\n` +
                 `*Payout:* ₹${trip.payout}\n` +
@@ -325,8 +385,8 @@ export default function DeliveryDashboard() {
 
   const shareFullHistoryOnWhatsApp = () => {
     if (tripHistory.length === 0) return;
-    const totalEarnings = tripHistory.reduce((acc, t) => acc + (t.status === 'Delivered' ? t.payout : 0), 0);
-    const completedCount = tripHistory.filter(t => t.status === 'Delivered').length;
+    const totalEarnings = tripHistory.reduce((acc, t) => acc + (t.status === 'delivered' ? t.payout : 0), 0);
+    const completedCount = tripHistory.filter(t => t.status === 'delivered').length;
     
     let msg = `📊 *Kadai Connect Shift Summary*\n\n` +
                 `*Total Trips:* ${tripHistory.length}\n` +
@@ -380,10 +440,23 @@ export default function DeliveryDashboard() {
         ) : (
           <div style={{ display: 'grid', gap: 30 }}>
              {tripHistory.map(trip => (
-                <div key={trip.id} style={{ ...S.panel, padding: 35, borderTop: `8px solid ${trip.status === 'Delivered' ? 'var(--green)' : 'var(--rust)'}` }}>
+                <div key={trip.id} style={{ 
+                   ...S.panel, 
+                   padding: 35, 
+                   borderTop: `8px solid ${trip.status === 'delivered' ? 'var(--green)' : trip.status === 'returned_to_store' ? 'var(--gold-deep)' : 'var(--rust)'}` 
+                }}>
                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 25 }}>
                       <div>
-                         <div style={{ ...S.statusBadge, background: trip.status === 'Delivered' ? 'var(--green)' : 'var(--rust)', color: 'white' }}>{isTa ? (trip.status === 'Delivered' ? 'டெலிவரி செய்யப்பட்டது' : 'தோல்வி') : trip.status}</div>
+                         <div style={{ 
+                            ...S.statusBadge, 
+                            background: trip.status === 'delivered' ? 'var(--green)' : trip.status === 'returned_to_store' ? 'var(--gold-deep)' : 'var(--rust)', 
+                            color: 'white' 
+                          }}>
+                            {isTa ? (
+                              trip.status === 'delivered' ? 'டெலிவரி செய்யப்பட்டது' : 
+                              trip.status === 'returned_to_store' ? 'கடைக்குத் திரும்பியது' : 'தோல்வி'
+                            ) : trip.status.replace('_', ' ').toUpperCase()}
+                          </div>
                          <div style={{ fontSize: '.75rem', fontWeight: 900, color: 'var(--brown-mid)', marginTop: 8 }}>TRIP ID: KC-{trip.id.toString().slice(-6)} • {trip.date} at {trip.time}</div>
                       </div>
                       <div style={{ textAlign: 'right' }}>
@@ -393,7 +466,7 @@ export default function DeliveryDashboard() {
                              </button>
                           </div>
                           <div style={{ fontSize: '1.4rem', fontWeight: 950, color: 'var(--brown-deep)' }}>₹{trip.payout}</div>
-                          <div style={{ fontSize: '.6rem', color: trip.status === 'Delivered' ? 'var(--green)' : 'var(--brown-mid)', fontWeight: 950 }}>{isTa ? (trip.status === 'Delivered' ? 'தீர்க்கப்பட்டது' : 'பணம் இல்லை') : (trip.status === 'Delivered' ? 'SETTLED' : 'NO PAYOUT')}</div>
+                          <div style={{ fontSize: '.6rem', color: trip.status === 'delivered' ? 'var(--green)' : 'var(--brown-mid)', fontWeight: 950 }}>{isTa ? (trip.status === 'delivered' ? 'தீர்க்கப்பட்டது' : 'பணம் இல்லை') : (trip.status === 'delivered' ? 'SETTLED' : 'NO PAYOUT')}</div>
                       </div>
                    </div>
 
@@ -445,7 +518,7 @@ export default function DeliveryDashboard() {
            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : '1fr', gap: 20 }}>
               <div style={{ ...S.panel, padding: 25, marginBottom: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
                  <div style={{ fontSize: '.7rem', fontWeight: 900, color: 'var(--brown-mid)', letterSpacing: 1 }}>{isTa ? 'ஆர்டர்கள் முடிக்கப்பட்டன' : 'TRIPS COMPLETED'}</div>
-                 <div style={{ fontSize: '2.2rem', fontWeight: 950, color: 'var(--brown-deep)' }}>{tripHistory.filter(t => t.status === 'Delivered').length}</div>
+                 <div style={{ fontSize: '2.2rem', fontWeight: 950, color: 'var(--brown-deep)' }}>{tripHistory.filter(t => t.status === 'delivered').length}</div>
               </div>
               <div style={{ ...S.panel, padding: 25, marginBottom: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
                  <div style={{ fontSize: '.7rem', fontWeight: 900, color: 'var(--brown-mid)', letterSpacing: 1 }}>{isTa ? 'வேலை செய்த நேரம்' : 'SHIFT DURATION'}</div>
@@ -469,21 +542,29 @@ export default function DeliveryDashboard() {
            ) : (
              <div style={{ display: 'grid', gap: 18 }}>
                 {tripHistory.slice(0, 5).map(trip => (
-                   <div key={trip.id} style={{ ...S.panel, display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '18px 28px', borderLeft: `6px solid ${trip.status === 'Delivered' ? 'var(--green)' : 'var(--rust)'}`, marginBottom: 0 }}>
+                   <div key={trip.id} style={{ 
+                      ...S.panel, 
+                      display: 'flex', 
+                      justifyContent: 'space-between', 
+                      alignItems: 'center', 
+                      padding: '18px 28px', 
+                      borderLeft: `6px solid ${trip.status === 'delivered' ? 'var(--green)' : trip.status === 'returned_to_store' ? 'var(--gold-deep)' : 'var(--rust)'}`, 
+                      marginBottom: 0 
+                    }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
-                         <div style={{ width: 44, height: 44, borderRadius: 12, background: trip.status === 'Delivered' ? 'rgba(34, 197, 94, 0.1)' : 'rgba(239, 68, 68, 0.1)', color: trip.status === 'Delivered' ? 'var(--green)' : 'var(--rust)', display: 'grid', placeItems: 'center' }}>
-                            {trip.status === 'Delivered' ? <Check size={24} strokeWidth={3} /> : <AlertCircle size={24} strokeWidth={3} />}
+                         <div style={{ width: 44, height: 44, borderRadius: 12, background: trip.status === 'delivered' ? 'rgba(34, 197, 94, 0.1)' : 'rgba(239, 68, 68, 0.1)', color: trip.status === 'delivered' ? 'var(--green)' : 'var(--rust)', display: 'grid', placeItems: 'center' }}>
+                            {trip.status === 'delivered' ? <Check size={24} strokeWidth={3} /> : <AlertCircle size={24} strokeWidth={3} />}
                          </div>
                          <div>
                             <div style={{ fontWeight: 950, color: 'var(--brown-deep)', fontSize: '1.05rem' }}>{isTa ? trip.shopName_ta : trip.shopName} → {isTa ? trip.customerName_ta : trip.customerName}</div>
                             <div style={{ fontSize: '.75rem', color: 'var(--brown-mid)', fontWeight: 800, display: 'flex', alignItems: 'center', gap: 6 }}>
-                               <Clock size={12} /> {isTa ? (trip.status === 'Delivered' ? 'முடிந்தது' : 'தோல்வி') : trip.status} at {trip.time}
+                               <Clock size={12} /> {isTa ? (trip.status === 'delivered' ? 'முடிந்தது' : 'தோல்வி') : trip.status} at {trip.time}
                             </div>
                          </div>
                       </div>
                       <div style={{ textAlign: 'right' }}>
-                         <div style={{ fontWeight: 950, fontSize: '1.4rem', color: 'var(--brown-deep)' }}>+₹{trip.status === 'Delivered' ? trip.payout : 0}</div>
-                         <div style={{ fontSize: '.6rem', color: trip.status === 'Delivered' ? 'var(--green)' : 'var(--rust)', fontWeight: 900 }}>{(isTa ? (trip.status === 'Delivered' ? 'வெற்றி' : 'தோல்வி') : trip.status).toUpperCase()}</div>
+                         <div style={{ fontWeight: 950, fontSize: '1.4rem', color: 'var(--brown-deep)' }}>+₹{trip.status === 'delivered' ? trip.payout : 0}</div>
+                         <div style={{ fontSize: '.6rem', color: trip.status === 'delivered' ? 'var(--green)' : 'var(--rust)', fontWeight: 900 }}>{(isTa ? (trip.status === 'delivered' ? 'வெற்றி' : 'தோல்வி') : trip.status).toUpperCase()}</div>
                       </div>
                    </div>
                 ))}
@@ -638,9 +719,30 @@ export default function DeliveryDashboard() {
 
   return (
     <div className="db-shell" style={{ display: 'flex', flexDirection: 'column', background: '#f5f5f7', minHeight: '100vh', width: '100%', paddingBottom: 80 }}>
+      <NotificationPanel isOpen={notificationOpen} onClose={() => setNotificationOpen(false)} />
       {/* HEADER WITH ONLINE TOGGLE */}
       <header style={{ position: 'sticky', top: 0, zIndex: 11000, width: '100%', background: 'var(--brown-deep)', padding: isMobile ? '12px 20px' : '16px 32px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '3.5px solid var(--gold)', boxShadow: '0 8px 35px rgba(0,0,0,0.3)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 10 : 15 }}>
+          <button 
+            onClick={() => navigate(-1)} 
+            style={{ 
+              background: 'var(--gold)', 
+              border: 'none', 
+              color: 'var(--brown-deep)', 
+              cursor: 'pointer', 
+              width: isMobile ? 32 : 40, 
+              height: isMobile ? 32 : 40, 
+              borderRadius: 10, 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center', 
+              boxShadow: '0 4px 10px rgba(0,0,0,0.2)', 
+              transition: '.2s',
+              flexShrink: 0
+            }}
+          >
+            <ArrowLeft size={isMobile ? 18 : 22} />
+          </button>
           <img src="/logo.png" alt="Logo" style={{ height: isMobile ? 32 : 44, border: '2.5px solid var(--gold)', borderRadius: 12 }} />
           <span style={{ fontFamily: 'var(--font-d)', fontWeight: 950, color: 'var(--gold-light)', fontSize: isMobile ? '1.1rem' : '1.6rem', letterSpacing: 0.5 }}>
             Kadai<span style={{ color: 'white' }}>Connect</span>
@@ -650,7 +752,7 @@ export default function DeliveryDashboard() {
         <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 8 : 20 }}>
           <button 
             style={{ background: 'transparent', border: 'none', color: 'var(--gold)', cursor: 'pointer', position: 'relative', display: 'grid', placeItems: 'center', padding: 4 }}
-            onClick={() => showToast(isTa ? 'புதிய அறிவிப்புகள் எதுவும் இல்லை' : 'No new notifications')}
+            onClick={() => setNotificationOpen(true)}
           >
             <Bell size={isMobile ? 20 : 26} />
             <span style={{ position: 'absolute', top: 2, right: 2, width: 8, height: 8, background: 'var(--gold)', borderRadius: '50%', border: '1.5px solid var(--brown-deep)' }}></span>
@@ -674,11 +776,18 @@ export default function DeliveryDashboard() {
         
         {section === 'active' && (
           <div style={{ width: '100%' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 30 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 20 }}>
                <div>
                   <h1 style={{ fontFamily: 'var(--font-d)', fontSize: isMobile ? '1.8rem' : '2.6rem', fontWeight: 950, color: 'var(--brown-deep)' }}>{isTa ? 'நேரடி டிராக்கிங்' : 'Live Tracking'}</h1>
-                  <p style={{ color: 'var(--brown-mid)', fontWeight: 800 }}>{optimizedStops.length} {isTa ? 'தற்போதைய பாதையில் நிறுத்தங்கள்' : 'stops in current Cockpit Path'}</p>
+                  <p style={{ color: 'var(--brown-mid)', fontWeight: 800 }}>{optimizedStops.length} {isTa ? 'தற்போதைய பாதையில் நிறுத்தங்கள்' : 'stops in current sequence'}</p>
                </div>
+               
+               {optimizedStops.length > 0 && routeStats.distance > 0 && (
+                 <div style={{ textAlign: 'right', background: 'var(--gold-light)', padding: '10px 15px', borderRadius: 12, border: '1.5px solid var(--gold)' }}>
+                   <div style={{ fontSize: '1.2rem', fontWeight: 900, color: 'var(--brown-deep)' }}>{routeStats.distance} km</div>
+                   <div style={{ fontSize: '.8rem', color: 'var(--brown-mid)', fontWeight: 800 }}>~{routeStats.duration} mins</div>
+                 </div>
+               )}
             </div>
 
             {optimizedStops.length === 0 && (
@@ -699,15 +808,15 @@ export default function DeliveryDashboard() {
               </div>
             )}
 
-            <LeafletMapView 
-              driverPos={driverPos} 
-              route={routePolyline} 
-              stops={optimizedStops} 
-              origin={SHOP_ORIGIN} 
-              isMaximized={isMapMaximized}
-              onToggleMaximize={() => setIsMapMaximized(!isMapMaximized)}
-            />
-
+            <div style={{ height: isMapMaximized ? '70vh' : '400px', width: '100%', marginBottom: 20 }}>
+              <DeliveryMap 
+                pickupCoords={optimizedStops.length > 0 ? optimizedStops[0].pickup_coords : null}
+                deliveryCoords={optimizedStops.length > 0 ? optimizedStops[0].delivery_coords : null}
+                currentCoords={driverPos}
+                onRouteUpdate={setRouteStats}
+              />
+            </div>
+            
             {/* ENRICHED TASK TRAY FOR MAXIMIZED MODE */}
             {isMapMaximized && (
                <div style={{ position: 'fixed', bottom: 100, left: 0, right: 0, zIndex: 10001, display: 'flex', justifyContent: 'center', padding: '10px 20px', overflowX: 'auto', gap: 15 }}>
@@ -763,8 +872,30 @@ export default function DeliveryDashboard() {
                      </div>
 
                      {i === 0 && (
-                        <button onClick={() => markDelivered(d.id)} style={{ ...S.btnPrimary, width: '100%', marginTop: 25, background: 'var(--green)', border: 'none', color: 'white', height: 55 }}>
-                          <CheckCircle size={22} /> {isTa ? 'சரிபார்த்து முடிக்கவும்' : 'VERIFY & COMPLETE'}
+                        <button 
+                          onClick={() => {
+                            if (d.status === 'returning_to_store') {
+                              // If already returning, just finalize it
+                              handleStatusSubmit('FinalizeReturn');
+                            } else {
+                              markDelivered(d.id);
+                            }
+                          }} 
+                          style={{ 
+                            ...S.btnPrimary, 
+                            width: '100%', 
+                            marginTop: 25, 
+                            background: d.status === 'returning_to_store' ? 'var(--gold-deep)' : 'var(--green)', 
+                            border: 'none', 
+                            color: 'white', 
+                            height: 55 
+                          }}
+                        >
+                          {d.status === 'returning_to_store' ? (
+                            <><RotateCcw size={22} /> {isTa ? 'திரும்பப் பெறுதலை உறுதிப்படுத்து' : 'CONFIRM RETURN'}</>
+                          ) : (
+                            <><CheckCircle size={22} /> {isTa ? 'சரிபார்த்து முடிக்கவும்' : 'VERIFY & COMPLETE'}</>
+                          )}
                         </button>
                       )}
                   </div>
@@ -776,8 +907,8 @@ export default function DeliveryDashboard() {
 
         {section === 'upcoming' && (
           <div>
-            <h1 style={{ fontFamily: 'var(--font-d)', fontSize: '2.5rem', fontWeight: 950, color: 'var(--brown-deep)', marginBottom: 30 }}>{isTa ? 'வரவிருக்கும் பணிகள்' : 'Upcoming Assignments'}</h1>
-            <p style={{ color: 'var(--brown-mid)', fontWeight: 800, marginBottom: 40 }}>{upcoming.length} {isTa ? 'உடனடி மேம்படுத்தலுக்குத் தயாராக உள்ள ஆர்டர்கள்' : 'batches available for immediate sequence optimization'}</p>
+            <h1 style={{ fontFamily: 'var(--font-d)', fontSize: '2.5rem', fontWeight: 950, color: 'var(--brown-deep)', marginBottom: 30 }}>{isTa ? 'கிடைக்கக்கூடிய ஆர்டர்கள்' : 'Available Orders'}</h1>
+            <p style={{ color: 'var(--brown-mid)', fontWeight: 800, marginBottom: 40 }}>{upcoming.length} {isTa ? 'ஆர்டர்கள் எடுக்கத் தயாராக உள்ளன' : 'orders ready to be picked up'}</p>
             <div style={{ display: 'grid', gap: 30, gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))' }}>
               {upcoming.map(u => (
                 <div key={u.id} style={{ ...S.panel, padding: 30, borderTop: '8px solid var(--gold)', position: 'relative', overflow: 'hidden' }}>
@@ -814,7 +945,7 @@ export default function DeliveryDashboard() {
                     >
                        {claimingId === u.id ? (isTa ? 'ஏற்கப்படுகிறது...' : 'CLAIMING...') : (
                          <>
-                           <Check size={20} /> {isTa ? 'ஏற்றுக்கொள்ளவும்' : 'ACCEPT TO COCKPIT'}
+                           <Check size={20} /> {isTa ? 'ஆர்டரை எடு' : 'PICK THIS ORDER'}
                          </>
                        )}
                     </button>

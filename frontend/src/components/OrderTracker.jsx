@@ -13,9 +13,9 @@ export default function OrderTracker({ order }) {
 
   const steps = [
     { label: t('order_placed') || 'Order Placed', done: true, icon: <CheckCircle2 size={16} /> },
-    { label: t('store_confirmed') || 'Confirmed', done: isConf, active: !isConf, icon: <CheckCircle2 size={16} /> },
-    { label: t('out_for_delivery') || 'Out for Delivery', done: isOut, active: isConf && !isOut, icon: <Truck size={16} /> },
-    { label: t('delivered') || 'Delivered', done: isDelivered, active: isOut && !isDelivered, icon: <HomeIcon size={16} /> },
+    { label: t('store_confirmed') || 'Confirmed', done: ['confirmed', 'packed', 'ready', 'assigned', 'heading_to_store', 'picked_up', 'out_for_delivery', 'delivered'].includes(s), active: s === 'new', icon: <CheckCircle2 size={16} /> },
+    { label: t('out_for_delivery') || 'Out for Delivery', done: ['out_for_delivery', 'delivered'].includes(s), active: ['assigned', 'heading_to_store', 'picked_up'].includes(s), icon: <Truck size={16} /> },
+    { label: t('delivered') || 'Delivered', done: s === 'delivered', active: s === 'out_for_delivery', icon: <HomeIcon size={16} /> },
   ];
 
   return (

@@ -11,6 +11,8 @@ class Store(models.Model):
     district = models.CharField(max_length=100, blank=True, null=True)
     address = models.TextField(blank=True, null=True)
     location = models.CharField(max_length=255, blank=True, null=True, default='Tamil Nadu')
+    latitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
+    longitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
     pincode = models.CharField(max_length=10, blank=True, null=True)
     rating = models.DecimalField(max_digits=3, decimal_places=2, default=5.0)
     logo = models.ImageField(upload_to='logos/', blank=True, null=True)
@@ -20,6 +22,11 @@ class Store(models.Model):
     has_products = models.BooleanField(default=True)
     has_services = models.BooleanField(default=False)
     is_active = models.BooleanField(default=True)
+    
+    # Delivery Subsidy Controls
+    first_order_free_enabled = models.BooleanField(default=True)
+    max_free_delivery_cap = models.DecimalField(max_digits=10, decimal_places=2, default=50.00)
+    
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):

@@ -1,6 +1,7 @@
-from rest_framework import viewsets, permissions
+from rest_framework import viewsets, permissions, serializers
 from .models import Product, Category
 from .serializers import ProductSerializer, CategorySerializer
+from .utils import resolve_category
 from stores.models import Store
 
 
@@ -40,29 +41,19 @@ class ProductViewSet(viewsets.ModelViewSet):
             )
         return store
 
-    def _resolve_category(self, name):
-        """Resolve category by name string, creating it if needed."""
-        if not name or name in ('', 'Other', 'General'):
-            name = 'General'
-        category, _ = Category.objects.get_or_create(name=name)
-        return category
-
     def perform_create(self, serializer):
         store = self._get_or_create_store(self.request.user)
-        category_name = self.request.data.get('category') or self.request.data.get('category_name', '')
-        category = self._resolve_category(category_name)
-        # Frontend sends 'desc'; model expects 'description'
-        desc = (
-            self.request.data.get('description')
-            or self.request.data.get('desc')
-            or ''
-        )
+        category = resolve_category(self.request.data, default_type='product')
+        
+        if not category:
+            raise serializers.ValidationError({"category": "A valid category selection is mandatory."})
+            
+        desc = self.request.data.get('description') or self.request.data.get('desc') or ''
         serializer.save(store=store, category=category, description=desc)
 
     def perform_update(self, serializer):
-        category_name = self.request.data.get('category') or self.request.data.get('category_name', '')
-        if category_name:
-            category = self._resolve_category(category_name)
+        category = resolve_category(self.request.data, default_type='product')
+        if category:
             serializer.save(category=category)
         else:
             serializer.save()
@@ -71,6 +62,19 @@ class ProductViewSet(viewsets.ModelViewSet):
 class CategoryViewSet(viewsets.ModelViewSet):
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
+
+    def get_queryset(self):
+        qs = self.queryset
+        type_param = self.request.query_params.get('type')
+        if type_param:
+            from django.db.models import Q
+            qs = qs.filter(Q(type=type_param) | Q(type='both'))
+        
+        top_level = self.request.query_params.get('top_level')
+        if top_level == 'true':
+            qs = qs.filter(parent=None)
+            
+        return qs
 
     def get_permissions(self):
         if self.action in ['list', 'retrieve']:

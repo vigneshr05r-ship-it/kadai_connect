@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import WhatsAppButton from './WhatsAppButton';
 
 const API = import.meta.env.VITE_API_URL || '';
 
@@ -160,6 +161,16 @@ export default function BookingsPanel({ apiFetch, isTa, showToast }) {
                 )}
                 {b.status === 'ReadyForPickup' && (
                   <span style={{ fontSize: '.7rem', color: 'var(--brown-mid)', fontStyle: 'italic' }}>{isTa ? 'பிக்கப் காத்திருக்கிறது...' : 'Awaiting Pickup...'}</span>
+                )}
+                
+                {b.status !== 'Cancelled' && b.status !== 'Completed' && (
+                  <WhatsAppButton 
+                    phone={b.customer_phone}
+                    variant="ghost"
+                    label={isTa ? 'வாடிக்கையாளரைத் தொடர்பு கொள்ள' : 'Contact Customer'}
+                    message={`Hello! This is regarding your service order #${b.id}.\n\nPlease share any reference images or confirm details.`}
+                    style={{ padding: '6px 12px', fontSize: '.7rem', borderRadius: 8, marginTop: 4 }}
+                  />
                 )}
               </div>
             </div>

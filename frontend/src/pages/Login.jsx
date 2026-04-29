@@ -115,16 +115,12 @@ const Modal = ({ role, title, icon, onClose, onLogin, apiFetch }) => {
       });
       const data = await resp.json();
       if (resp.ok) {
-        // Fetch the REAL profile from /api/users/me/ (much safer than list filter)
         const userResp = await apiFetch('/api/users/me/', {
           headers: { 'Authorization': `Bearer ${data.access}` }
         });
         
         if (!userResp.ok) throw new Error('Failed to fetch profile');
-        
         const profile = await userResp.json();
-        
-        // --- STRICT ROLE VERIFICATION ---
         const userRole = profile?.role || 'customer';
         if (userRole !== role) {
           throw new Error(`Unauthorized: This account is registered as a ${userRole}. Please use the ${userRole === 'shopkeeper' ? 'Shopkeeper' : userRole === 'delivery' ? 'Delivery' : 'Customer'} portal.`);
@@ -181,7 +177,6 @@ const Modal = ({ role, title, icon, onClose, onLogin, apiFetch }) => {
       const data = await resp.json();
       if (resp.ok) {
         showMsg('success', 'Account created! Logging in…');
-        // Auto-login after register
         handleLogin();
       } else {
         const errText = typeof data === 'object' ? Object.entries(data).map(([k, v]) => `${k}: ${v}`).join(', ') : JSON.stringify(data);
@@ -194,51 +189,48 @@ const Modal = ({ role, title, icon, onClose, onLogin, apiFetch }) => {
     }
   };
 
-
-
   const tabs = ['login', 'register'];
   const tabLabels = { 
     shopkeeper: ['Login', 'Register Store'], 
-    customer: ['Login', 'Sign Up'], 
-    delivery: ['Login', 'Sign Up'] 
+    customer: ['Login', 'Join Us'], 
+    delivery: ['Login', 'Partner Up'] 
   };
 
   return (
     <div onClick={onClose} style={{
-      position: 'fixed', inset: 0, background: 'rgba(43,21,5,.65)',
-      backdropFilter: 'blur(4px)', zIndex: 6000, display: 'grid', placeItems: 'center', padding: 16,
+      position: 'fixed', inset: 0, background: 'rgba(43,21,5,.75)',
+      backdropFilter: 'blur(10px)', zIndex: 6000, display: 'grid', placeItems: 'center', padding: 20,
     }}>
-      <div onClick={e => e.stopPropagation()} style={{
-        background: 'var(--cream)', border: '2px solid var(--gold)', borderRadius: 10,
-        padding: window.innerWidth < 480 ? '24px 20px' : '36px 40px', 
-        maxWidth: 440, width: 'calc(100% - 32px)',
-        boxShadow: '8px 8px 0 var(--brown-deep)', position: 'relative',
-        maxHeight: '92vh', overflowY: 'auto',
+      <div onClick={e => e.stopPropagation()} className="vintage-card" style={{
+        padding: '48px 40px', maxWidth: 480, width: '100%',
+        position: 'relative', maxHeight: '92vh', overflowY: 'auto',
+        borderWidth: '3px', borderRadius: '40px'
       }}>
         <button onClick={onClose} style={{
-          position: 'absolute', top: 12, right: 16, background: 'none', border: 'none',
-          fontSize: '1.3rem', cursor: 'pointer', color: 'var(--brown-mid)',
+          position: 'absolute', top: 24, right: 28, background: 'var(--parchment)', border: 'none',
+          width: 36, height: 36, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontSize: '1rem', cursor: 'pointer', color: 'var(--brown-deep)', fontWeight: 900
         }}>✕</button>
 
-        <div style={{ fontFamily: 'var(--font-d)', fontSize: '1.4rem', fontWeight: 900, color: 'var(--brown-deep)', marginBottom: 4 }}>
+        <div style={{ fontSize: '2rem', fontWeight: 900, color: 'var(--brown-deep)', marginBottom: 8 }}>
           {icon} {title}
         </div>
-        <div style={{ fontSize: '.83rem', color: 'var(--brown-mid)', fontStyle: 'italic', marginBottom: 20 }}>
-          {role === 'shopkeeper' ? 'Manage your store with AI-powered insights' :
-           role === 'customer' ? 'Discover local stores near you' : 'View and manage your deliveries'}
+        <div style={{ fontSize: '.95rem', color: 'var(--brown-mid)', marginBottom: 32, fontWeight: 600 }}>
+          {role === 'shopkeeper' ? 'Manage your shop and orders' :
+           role === 'customer' ? 'Shop from local stores near you' : 'Manage your deliveries'}
         </div>
 
         {/* Tabs */}
         <div style={{
-          display: 'flex', gap: 0, marginBottom: 20,
-          border: '1.5px solid var(--parchment)', borderRadius: 6, overflow: 'hidden',
+          display: 'flex', gap: 0, marginBottom: 32,
+          background: 'var(--parchment)', padding: 6, borderRadius: 20,
         }}>
           {tabs.map((t, i) => (
             <button key={t} onClick={() => setTab(t)} style={{
-              flex: 1, padding: '10px 8px', textAlign: 'center', cursor: 'pointer',
-              fontFamily: 'var(--font-d)', fontSize: '.78rem', fontWeight: 700, border: 'none',
-              transition: '.2s',
-              background: tab === t ? 'var(--brown-deep)' : 'var(--cream-dark)',
+              flex: 1, padding: '14px 10px', textAlign: 'center', cursor: 'pointer',
+              fontFamily: 'var(--font-d)', fontSize: '.9rem', fontWeight: 900, border: 'none',
+              transition: '.3s cubic-bezier(0.4, 0, 0.2, 1)', borderRadius: 16,
+              background: tab === t ? 'var(--brown-deep)' : 'transparent',
               color: tab === t ? 'var(--gold-light)' : 'var(--brown-mid)',
             }}>{tabLabels[role][i]}</button>
           ))}
@@ -247,57 +239,54 @@ const Modal = ({ role, title, icon, onClose, onLogin, apiFetch }) => {
         {/* Message */}
         {msg.text && (
           <div style={{
-            padding: '10px 14px', borderRadius: 6, fontSize: '.82rem', marginBottom: 14,
-            background: msg.type === 'success' ? '#d4edda' : '#f8d7da',
-            color: msg.type === 'success' ? '#155724' : '#721c24',
-            border: `1px solid ${msg.type === 'success' ? '#c3e6cb' : '#f5c6cb'}`,
+            padding: '14px 18px', borderRadius: 16, fontSize: '.85rem', marginBottom: 20,
+            background: msg.type === 'success' ? 'var(--green-light)' : 'var(--rust)',
+            color: '#fff', fontWeight: 800, textAlign: 'center', boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
           }}>{msg.text}</div>
         )}
 
         {/* LOGIN TAB */}
         {tab === 'login' && (
           <div>
-            <FormGroup label="Phone / Email">
-              <input style={inputStyle} type="text" placeholder="" autoComplete="off"
+            <FormGroup label="Email">
+              <input className="vintage-input" type="text" placeholder="" autoComplete="off"
                 value={form.email} onChange={e => setForm({ ...form, email: e.target.value })}/>
             </FormGroup>
             <FormGroup 
               label="Password" 
-              rightLabel={<span onClick={() => setTab('forgot')} style={{ fontSize: '.72rem', color: 'var(--gold)', cursor: 'pointer', textDecoration: 'underline' }}>Forgot Password?</span>}
+              rightLabel={<span onClick={() => setTab('forgot')} style={{ fontSize: '.75rem', color: 'var(--gold)', cursor: 'pointer', fontWeight: 800 }}>Forgot password?</span>}
             >
-              <input style={inputStyle} type="password" placeholder="" autoComplete="new-password"
+              <input className="vintage-input" type="password" placeholder="" autoComplete="new-password"
                 value={form.password} onChange={e => setForm({ ...form, password: e.target.value })}/>
             </FormGroup>
-            <button style={submitBtn} onClick={handleLogin} disabled={loading}>
-              {loading ? 'Logging in…' : `Login & Enter ${role === 'shopkeeper' ? 'Dashboard' : 'Portal'} →`}
+            <button className="vintage-btn-primary" style={{ width: '100%', marginTop: 12, padding: 18 }} onClick={handleLogin} disabled={loading}>
+              {loading ? 'Logging in…' : `Login as ${role === 'shopkeeper' ? 'Shopkeeper' : role === 'delivery' ? 'Delivery' : 'Customer'}`}
             </button>
           </div>
         )}
 
-        {/* FORGOT PASSWORD TAB (MULTI-STEP) */}
+        {/* FORGOT PASSWORD TAB */}
         {tab === 'forgot' && (
           <div>
             {forgotStep === 'input' && (
               <>
-                <div style={{ fontSize: '.82rem', color: 'var(--brown-mid)', marginBottom: 14 }}>Enter your registered email or phone to receive an OTP.</div>
+                <div style={{ fontSize: '.9rem', color: 'var(--brown-mid)', marginBottom: 20, fontStyle: 'italic', fontWeight: 600 }}>Enter your identity to receive a verification code.</div>
                 <FormGroup label="Email / Phone">
-                  <input style={inputStyle} type="text" placeholder="Email or Phone" autoFocus
+                  <input className="vintage-input" type="text" placeholder="Identity" autoFocus
                     value={form.email} onChange={e => setForm({ ...form, email: e.target.value })}/>
                 </FormGroup>
-                <button style={submitBtn} onClick={handleForgotSubmit} disabled={loading}>{loading ? 'Checking…' : 'Send OTP →'}</button>
+                <button className="vintage-btn-primary" style={{ width: '100%', marginTop: 12 }} onClick={handleForgotSubmit} disabled={loading}>{loading ? 'Seeking…' : 'Send Code →'}</button>
               </>
             )}
 
             {forgotStep === 'confirm_demo' && (
               <div style={{ textAlign: 'center', padding: '10px 0' }}>
-                <div style={{ fontSize: '2rem', marginBottom: 10 }}>💡</div>
-                <div style={{ fontSize: '.9rem', fontWeight: 700, color: 'var(--brown-deep)', marginBottom: 8 }}>Account Not Found</div>
-                <div style={{ fontSize: '.82rem', color: 'var(--brown-mid)', marginBottom: 20 }}>This email/phone is not registered. Would you like to continue in <strong>Demo Mode</strong>?</div>
-                <div style={{ display: 'flex', gap: 10 }}>
-                  <button style={{ ...submitBtn, background: 'var(--gold)', color: 'var(--brown-deep)', border: 'none', marginTop: 0 }} 
-                    onClick={() => { setIsDemo(true); setForgotStep('otp'); }}>Continue in Demo Mode</button>
-                  <button style={{ ...submitBtn, background: 'transparent', color: 'var(--brown-mid)', border: '1.5px solid var(--parchment)', marginTop: 0 }} 
-                    onClick={() => setForgotStep('input')}>Back</button>
+                <div style={{ fontSize: '3rem', marginBottom: 16 }}>📜</div>
+                <div style={{ fontSize: '1.2rem', fontWeight: 900, color: 'var(--brown-deep)', marginBottom: 8, fontFamily: 'var(--font-d)' }}>Record Not Found</div>
+                <div style={{ fontSize: '.9rem', color: 'var(--brown-mid)', marginBottom: 24, fontStyle: 'italic' }}>This identity is not recorded in our archives. Explore as a <strong>Guest Witness</strong> instead?</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  <button className="vintage-btn-primary" onClick={() => { setIsDemo(true); setForgotStep('otp'); }}>Witness in Demo Mode</button>
+                  <button style={{ background: 'none', border: 'none', color: 'var(--brown-mid)', fontWeight: 800, cursor: 'pointer' }} onClick={() => setForgotStep('input')}>Back to Search</button>
                 </div>
               </div>
             )}
@@ -305,109 +294,76 @@ const Modal = ({ role, title, icon, onClose, onLogin, apiFetch }) => {
             {forgotStep === 'otp' && (
               <>
                 {isDemo && (
-                  <div style={{ background: 'var(--gold-pale)', border: '1px solid var(--gold)', padding: 10, borderRadius: 6, marginBottom: 14, fontSize: '.75rem', textAlign: 'center', color: 'var(--brown-deep)' }}>
-                    🛠️ <strong>Demo Mode Enabled</strong><br/>Use OTP: <strong>123456</strong>
+                  <div className="vintage-tag" style={{ width: '100%', textAlign: 'center', marginBottom: 20, padding: 10 }}>
+                    🛠️ Demo Key: <strong>123456</strong>
                   </div>
                 )}
-                <div style={{ fontSize: '.82rem', color: 'var(--brown-mid)', marginBottom: 14 }}>Enter the 6-digit OTP sent to <strong>{form.email}</strong></div>
-                <FormGroup label="Enter OTP">
-                  <input style={{ ...inputStyle, textAlign: 'center', letterSpacing: 8, fontSize: '1.2rem', fontWeight: 800 }} 
+                <div style={{ fontSize: '.9rem', color: 'var(--brown-mid)', marginBottom: 20, fontStyle: 'italic', fontWeight: 600 }}>Enter the 6-digit code sent to your archive.</div>
+                <FormGroup label="Verification Code">
+                  <input className="vintage-input" style={{ textAlign: 'center', letterSpacing: 12, fontSize: '1.5rem', fontWeight: 900 }} 
                     type="text" maxLength={6} placeholder="------" autoFocus
                     value={form.otp} onChange={e => setForm({ ...form, otp: e.target.value })}/>
                 </FormGroup>
-                <button style={submitBtn} onClick={handleVerifyOtp} disabled={loading}>{loading ? 'Verifying…' : 'Verify OTP →'}</button>
-                
-                <div style={{ marginTop: 16, textAlign: 'center', fontSize: '.75rem', color: 'var(--brown-mid)' }}>
-                  {timer > 0 ? `Resend OTP in ${timer}s` : <span onClick={handleForgotSubmit} style={{ color: 'var(--gold)', cursor: 'pointer', textDecoration: 'underline' }}>Resend OTP</span>}
-                </div>
+                <button className="vintage-btn-primary" style={{ width: '100%', marginTop: 12 }} onClick={handleVerifyOtp} disabled={loading}>{loading ? 'Verifying…' : 'Verify Code →'}</button>
               </>
             )}
 
             {forgotStep === 'reset' && (
               <>
-                <div style={{ fontSize: '.82rem', color: 'var(--brown-mid)', marginBottom: 14 }}>OTP Verified! Now set your new secure password.</div>
-                <FormGroup label="New Password">
-                  <input style={inputStyle} type="password" placeholder="" autoFocus
+                <div style={{ fontSize: '.9rem', color: 'var(--brown-mid)', marginBottom: 20, fontStyle: 'italic', fontWeight: 600 }}>Archive verified! Set your new secure secret.</div>
+                <FormGroup label="New Secret">
+                  <input className="vintage-input" type="password" placeholder="" autoFocus
                     value={form.newPassword} onChange={e => setForm({ ...form, newPassword: e.target.value })}/>
                 </FormGroup>
-                <FormGroup label="Confirm Password">
-                  <input style={inputStyle} type="password" placeholder=""
+                <FormGroup label="Confirm Secret">
+                  <input className="vintage-input" type="password" placeholder=""
                     value={form.confirmPassword} onChange={e => setForm({ ...form, confirmPassword: e.target.value })}/>
                 </FormGroup>
-                <button style={submitBtn} onClick={handleResetPassword} disabled={loading}>{loading ? 'Saving…' : 'Reset Password & Login →'}</button>
+                <button className="vintage-btn-primary" style={{ width: '100%', marginTop: 12 }} onClick={handleResetPassword} disabled={loading}>{loading ? 'Securing…' : 'Finalize & Enter →'}</button>
               </>
             )}
 
-            <div style={{ marginTop: 20, textAlign: 'center', borderTop: '1.5px solid var(--parchment)', paddingTop: 16 }}>
-              <span onClick={() => { setTab('login'); setForgotStep('input'); }} style={{ fontSize: '.75rem', color: 'var(--brown-mid)', cursor: 'pointer' }}>← Back to Login</span>
+            <div style={{ marginTop: 24, textAlign: 'center', borderTop: '2px solid var(--parchment)', paddingTop: 20 }}>
+              <span onClick={() => { setTab('login'); setForgotStep('input'); }} style={{ fontSize: '.85rem', color: 'var(--brown-mid)', cursor: 'pointer', fontWeight: 800 }}>← Return to Login</span>
             </div>
           </div>
         )}
 
         {/* REGISTER TAB */}
         {tab === 'register' && (
-          <div>
-            <FormGroup label="Full Name"><input style={inputStyle} placeholder="" autoComplete="off" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })}/></FormGroup>
-            <FormGroup label="Phone"><input style={inputStyle} type="tel" placeholder="" autoComplete="off" value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })}/></FormGroup>
-            <FormGroup label="Email"><input style={inputStyle} type="email" placeholder="" autoComplete="off" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })}/></FormGroup>
-            <FormGroup label="Address"><input style={inputStyle} placeholder="" autoComplete="off" value={form.address} onChange={e => setForm({ ...form, address: e.target.value })}/></FormGroup>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <FormGroup label="Full Name"><input className="vintage-input" placeholder="" autoComplete="off" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })}/></FormGroup>
+            <FormGroup label="Phone"><input className="vintage-input" type="tel" placeholder="" autoComplete="off" value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })}/></FormGroup>
+            <FormGroup label="Email"><input className="vintage-input" type="email" placeholder="" autoComplete="off" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })}/></FormGroup>
+            <FormGroup label="Address"><input className="vintage-input" placeholder="" autoComplete="off" value={form.address} onChange={e => setForm({ ...form, address: e.target.value })}/></FormGroup>
             <FormGroup label="District">
-              <select style={inputStyle} value={form.district} onChange={e => setForm({ ...form, district: e.target.value })}>
+              <select className="vintage-input" value={form.district} onChange={e => setForm({ ...form, district: e.target.value })}>
                 {TN_DISTRICTS.map(d => <option key={d}>{d}</option>)}
               </select>
             </FormGroup>
-            <FormGroup label="Password"><input style={inputStyle} type="password" placeholder="" value={form.password} onChange={e => setForm({ ...form, password: e.target.value })}/></FormGroup>
+            <FormGroup label="Password"><input className="vintage-input" type="password" placeholder="" value={form.password} onChange={e => setForm({ ...form, password: e.target.value })}/></FormGroup>
+            
             {role === 'shopkeeper' && (
-              <>
-                <FormGroup label="Store Name"><input style={inputStyle} placeholder="" value={form.store_name} onChange={e => setForm({...form, store_name: e.target.value})}/></FormGroup>
-                <FormGroup label="Store Category">
-                  <input style={inputStyle} placeholder="" value={form.store_category} onChange={e => setForm({...form, store_category: e.target.value})}/>
+              <div style={{ marginTop: 20, padding: 24, background: 'var(--parchment)', borderRadius: 24, border: '2px solid var(--gold-pale)' }}>
+                <div style={{ fontSize: '1.1rem', fontWeight: 900, marginBottom: 20, color: 'var(--brown-deep)' }}>Shop Details</div>
+                <FormGroup label="Shop Name"><input className="vintage-input" placeholder="" value={form.store_name} onChange={e => setForm({...form, store_name: e.target.value})}/></FormGroup>
+                <FormGroup label="Category">
+                  <input className="vintage-input" placeholder="" value={form.store_category} onChange={e => setForm({...form, store_category: e.target.value})}/>
                 </FormGroup>
-                <FormGroup label="Pincode"><input style={inputStyle} placeholder="" value={form.pincode} onChange={e => setForm({...form, pincode: e.target.value})}/></FormGroup>
-                <FormGroup label="Logo Image">
-                  <label style={{...submitBtn, background: 'var(--cream-dark)', color: 'var(--brown)', padding: 10, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6}}>
-                    {form.logoFile ? '✅ Logo Selected' : '📁 Choose Logo'}
-                    <input type="file" hidden accept="image/*" onChange={e => setForm({...form, logoFile: e.target.files[0]})}/>
-                  </label>
-                </FormGroup>
-                <FormGroup label="Store Banner">
-                  <label style={{...submitBtn, background: 'var(--cream-dark)', color: 'var(--brown)', padding: 10, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6}}>
-                    {form.bannerFile ? '✅ Banner Selected' : '📁 Choose Banner'}
-                    <input type="file" hidden accept="image/*" onChange={e => setForm({...form, bannerFile: e.target.files[0]})}/>
-                  </label>
-                </FormGroup>
-              </>
+                <FormGroup label="Pincode"><input className="vintage-input" placeholder="" value={form.pincode} onChange={e => setForm({...form, pincode: e.target.value})}/></FormGroup>
+              </div>
             )}
-            {role === 'delivery' && (
-              <>
-                <FormGroup label="Vehicle Type">
-                  <select style={inputStyle} value={form.vehicle_type} onChange={e => setForm({...form, vehicle_type: e.target.value})}>
-                    {['Bicycle','Motorcycle','Scooter','Auto'].map(o => <option key={o}>{o}</option>)}
-                  </select>
-                </FormGroup>
-                <FormGroup label="Vehicle Number">
-                  <input style={inputStyle} placeholder="" value={form.vehicle_reg_no} onChange={e => setForm({...form, vehicle_reg_no: e.target.value})}/>
-                </FormGroup>
-                <FormGroup label="License Number">
-                  <input style={inputStyle} placeholder="" value={form.license_number} onChange={e => setForm({...form, license_number: e.target.value})}/>
-                </FormGroup>
-              </>
-            )}
-            <button style={submitBtn} onClick={handleRegister} disabled={loading}>
-              {loading ? 'Creating Account…' : 'Create Account →'}
+            
+            <button className="vintage-btn-primary" style={{ width: '100%', marginTop: 20, padding: 18 }} onClick={handleRegister} disabled={loading}>
+              {loading ? 'Creating Account…' : 'Create Account'}
             </button>
           </div>
         )}
 
-
-
-        <div style={{ marginTop: 16, fontSize: '.78rem', color: 'var(--brown-mid)', textAlign: 'center' }}>
-          {tab === 'login' && <span>New here? <span onClick={() => setTab('register')} style={{ color: 'var(--gold)', cursor: 'pointer' }}>Register →</span></span>}
-          {tab === 'register' && <span>Already have an account? <span onClick={() => setTab('login')} style={{ color: 'var(--gold)', cursor: 'pointer' }}>Login →</span></span>}
-          {tab === 'forgot' && null}
+        <div style={{ marginTop: 24, fontSize: '.9rem', color: 'var(--brown-mid)', textAlign: 'center', fontWeight: 600 }}>
+          {tab === 'login' && <span>New to the Bazaar? <span onClick={() => setTab('register')} style={{ color: 'var(--gold)', cursor: 'pointer', fontWeight: 900 }}>Join Us →</span></span>}
+          {tab === 'register' && <span>Already an Initiate? <span onClick={() => setTab('login')} style={{ color: 'var(--gold)', cursor: 'pointer', fontWeight: 900 }}>Login →</span></span>}
         </div>
-
-
       </div>
     </div>
   );
@@ -472,16 +428,16 @@ const Login = () => {
 
   const LANG = {
     en: {
-      sup: 'Est. 2025 · Tamil Nadu · AI-Powered',
-      main: <>Connecting <em style={{ color: 'var(--gold)', fontStyle: 'italic' }}>Local Stores</em><br/>with Smart <em style={{ color: 'var(--gold)', fontStyle: 'italic' }}>AI Commerce</em></>,
-      sub: 'Festival demand prediction · Service booking · Smart delivery routes — built for your neighbourhood store.',
-      shop: 'Shopkeeper Portal', cust: 'Customer Portal', del: 'Delivery Partner',
+      sup: 'Tamil Nadu Hyperlocal Commerce',
+      main: <>Your Local <span style={{ color: 'var(--gold)' }}>Kadai</span>,<br/>Now Powered by <span style={{ color: 'var(--gold)' }}>AI</span></>,
+      sub: 'Connect with local shops, services, and delivery partners. Smart ordering, localized service booking, and fast delivery.',
+      shop: 'Shopkeeper Portal', cust: 'Customer Portal', del: 'Delivery Portal',
     },
     ta: {
-      sup: '2025 இல் தொடங்கியது · தமிழ்நாடு · AI',
-      main: <><em style={{ color: 'var(--gold)' }}>உள்ளூர் கடைகளை</em><br/>AI உடன் <em style={{ color: 'var(--gold)' }}>இணைக்கிறோம்</em></>,
-      sub: 'பண்டிகை தேவை கணிப்பு · சேவை முன்பதிவு · திட்டமிட்ட டெலிவரி',
-      shop: 'கடைக்காரர் உள்நுழைவு', cust: 'வாடிக்கையாளர்', del: 'டெலிவரி பார்ட்னர்',
+      sup: 'தமிழ்நாடு ஹைப்பர்லோகல் காமர்ஸ்',
+      main: <>உங்கள் உள்ளூர் <span style={{ color: 'var(--gold)' }}>கடை</span>,<br/>இப்போது <span style={{ color: 'var(--gold)' }}>AI</span> உடன்</>,
+      sub: 'உள்ளூர் கடைகள், சேவைகள் மற்றும் டெலிவரி கூட்டாளர்களுடன் இணையுங்கள்.',
+      shop: 'கடைக்காரர் நுழைவு', cust: 'வாடிக்கையாளர் சந்தை', del: 'டெலிவரி',
     },
   }[lang];
 
@@ -490,146 +446,72 @@ const Login = () => {
   const handleLogin = (userData, accessToken, portalRole) => {
     login(userData, accessToken);
     setOpenModal(null);
-    
-    // Redirect based on the portal they logged in through
-    if (userData.role === 'shopkeeper') {
-      navigate('/shopkeeper');
-    } else if (userData.role === 'delivery') {
-      navigate('/delivery');
-    } else {
-      navigate('/');
-    }
+    if (userData.role === 'shopkeeper') navigate('/shopkeeper');
+    else if (userData.role === 'delivery') navigate('/delivery');
+    else navigate('/');
   };
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--cream)' }}>
-      {/* Top Bar for Language Toggle */}
-      <div style={{ position: 'fixed', top: 20, right: 32, zIndex: 100, display: 'flex', gap: 6, background: 'rgba(43,21,5,.1)', padding: 4, borderRadius: 20 }}>
-        {['en', 'ta'].map(l => (
-          <button key={l} onClick={() => toggleLang(l)} style={{ padding: '6px 12px', borderRadius: 16, border: 'none', background: i18n.language.startsWith(l) ? 'var(--gold)' : 'transparent', color: i18n.language.startsWith(l) ? 'var(--brown-deep)' : 'var(--cream)', fontSize: '.75rem', fontWeight: 700, cursor: 'pointer', textTransform: 'uppercase', transition: '.2s' }}>{l}</button>
-        ))}
+    <div style={{ minHeight: '100vh', background: 'var(--cream)', position: 'relative' }}>
+      {/* Top Bar */}
+      <div style={{ position: 'fixed', top: 20, right: 20, zIndex: 100, display: 'flex', gap: 10 }}>
+        <div style={{ background: 'var(--parchment)', padding: 4, borderRadius: 12, display: 'flex', border: '1px solid var(--parchment)' }}>
+          {['en', 'ta'].map(l => (
+            <button key={l} onClick={() => toggleLang(l)} style={{ 
+              padding: '6px 14px', borderRadius: 10, border: 'none', 
+              background: i18n.language.startsWith(l) ? 'var(--brown-deep)' : 'transparent', 
+              color: i18n.language.startsWith(l) ? 'var(--gold-light)' : 'var(--brown-mid)', 
+              fontSize: '.75rem', fontWeight: 800, cursor: 'pointer', textTransform: 'uppercase'
+            }}>{l}</button>
+          ))}
+        </div>
       </div>
-      {/* Hero */}
+
+      {/* Hero Section */}
       <section style={{
         minHeight: '100vh', display: 'flex', flexDirection: 'column',
         alignItems: 'center', justifyContent: 'center',
-        padding: '120px 32px 80px', position: 'relative', overflow: 'hidden',
+        padding: '80px 20px', position: 'relative', zIndex: 1,
       }}>
-        {/* Arch decorations */}
-        <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', overflow: 'hidden' }}>
-          {[
-            { w: 700, h: 500, b: -80, borderColor: 'var(--gold)' },
-            { w: 900, h: 650, b: -160, borderColor: 'var(--brown-mid)' },
-            { w: 1100, h: 800, b: -240, borderColor: 'var(--gold)' },
-          ].map((a, i) => (
-            <div key={i} style={{
-              position: 'absolute',
-              width: a.w, height: a.h,
-              borderRadius: '50% 50% 0 0 / 60% 60% 0 0',
-              border: `1.5px solid ${a.borderColor}`, opacity: .1,
-              bottom: a.b, left: '50%', transform: 'translateX(-50%)',
-            }}/>
-          ))}
-        </div>
+        <div style={{ textAlign: 'center', maxWidth: 800 }}>
+          <span style={{ fontSize: '.75rem', letterSpacing: '2px', textTransform: 'uppercase', color: 'var(--gold)', fontWeight: 800, marginBottom: 16, display: 'block' }}>{LANG.sup}</span>
+          
+          <h1 style={{ fontSize: 'clamp(2rem, 6vw, 3.5rem)', fontWeight: 900, lineHeight: 1.2, color: 'var(--brown-deep)', marginBottom: 20 }}>{LANG.main}</h1>
+          
+          <p style={{ fontSize: '1.1rem', color: 'var(--brown-mid)', lineHeight: 1.5, maxWidth: 600, margin: '0 auto 40px', fontWeight: 600 }}>{LANG.sub}</p>
 
-        {/* Tagline */}
-        <div style={{ textAlign: 'center', position: 'relative', zIndex: 2, maxWidth: 800 }}>
-          <span style={{
-            fontSize: '.7rem', letterSpacing: '4px', textTransform: 'uppercase',
-            color: 'var(--gold)', fontStyle: 'italic', marginBottom: 18, display: 'block',
-            animation: 'fadeUp .6s .3s both',
-          }}>{LANG.sup}</span>
-          <h1 style={{
-            fontFamily: 'var(--font-d)', fontSize: 'clamp(2.2rem,5vw,4rem)', fontWeight: 900,
-            lineHeight: 1.12, color: 'var(--brown-deep)', marginBottom: 20,
-            animation: 'fadeUp .7s .5s both',
-          }}>{LANG.main}</h1>
-          <p style={{
-            fontSize: '1rem', color: 'var(--brown-mid)', lineHeight: 1.65,
-            maxWidth: 520, margin: '0 auto 40px',
-            animation: 'fadeUp .7s .7s both',
-          }}>{LANG.sub}</p>
-
-          {/* CTA Buttons */}
-          <div style={{
-            display: 'flex', flexWrap: 'wrap', gap: 14, justifyContent: 'center',
-            animation: 'fadeUp .7s .9s both',
-          }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, justifyContent: 'center' }}>
             <CtaBtn onClick={() => setOpenModal('shopkeeper')} variant="primary" icon="🏪">{LANG.shop}</CtaBtn>
-            <CtaBtn onClick={() => setOpenModal('customer')} variant="secondary" icon="👤">{LANG.cust}</CtaBtn>
-            <CtaBtn onClick={() => setOpenModal('delivery')} variant="accent" icon="🛵">{LANG.del}</CtaBtn>
+            <CtaBtn onClick={() => setOpenModal('customer')} variant="accent" icon="🛍️">{LANG.cust}</CtaBtn>
+            <CtaBtn onClick={() => setOpenModal('delivery')} variant="secondary" icon="🛵">{LANG.del}</CtaBtn>
           </div>
         </div>
 
-        {/* Floating Product Cards */}
-        <div style={{
-          display: 'flex', flexWrap: 'wrap', justifyContent: 'center',
-          gap: 14, maxWidth: 900, margin: '48px auto 0',
-          animation: 'fadeIn .5s 1.2s both',
-        }}>
-          {PRODUCTS.map((p, i) => (
-            <div key={i} style={{
-              width: 140, background: 'var(--cream-dark)',
-              border: '1.5px solid var(--parchment)', borderRadius: 8,
-              padding: '14px 12px', boxShadow: '3px 4px 18px var(--shadow)',
-              textAlign: 'center', transition: 'transform .3s, box-shadow .3s',
-              animation: `fadeUp .6s ${1.2 + i * 0.1}s both`, cursor: 'default',
-            }}
-              onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-8px)'; e.currentTarget.style.boxShadow = '5px 12px 28px var(--shadow)'; }}
-              onMouseLeave={e => { e.currentTarget.style.transform = ''; e.currentTarget.style.boxShadow = '3px 4px 18px var(--shadow)'; }}
-            >
-              <span style={{ fontSize: '2rem', display: 'block', marginBottom: 8 }}>{p.emoji}</span>
-              <div style={{ fontFamily: 'var(--font-d)', fontSize: '.72rem', fontWeight: 700, color: 'var(--brown-deep)' }}>{p.label}</div>
-              <div style={{ fontSize: '.68rem', color: 'var(--gold)', marginTop: 4, fontStyle: 'italic' }}>{p.price}</div>
-              <span style={{
-                display: 'inline-block', marginTop: 6, padding: '2px 8px',
-                background: 'var(--gold-pale)', border: '1px solid var(--gold)',
-                borderRadius: 12, fontSize: '.58rem', color: 'var(--brown)',
-              }}>{p.badge}</span>
-            </div>
-          ))}
-        </div>
-
-        {/* Feature Chips */}
-        <div style={{
-          display: 'flex', flexWrap: 'wrap', justifyContent: 'center',
-          gap: 20, maxWidth: 1000, margin: '48px auto', padding: '0 24px',
-          animation: 'fadeUp .7s 1.5s both',
-        }}>
-          {FEATURES.map((f, i) => (
-            <div key={i} style={{
-              display: 'flex', alignItems: 'center', gap: 10, padding: '10px 18px',
-              background: 'rgba(255,255,255,.5)', border: '1px solid var(--parchment)',
-              borderRadius: 32, fontSize: '.82rem', color: 'var(--brown)',
-              boxShadow: '2px 2px 8px var(--shadow)',
-            }}>
-              <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--gold)', flexShrink: 0 }}/>
-              <span>{f}</span>
-            </div>
-          ))}
+        {/* Feature Grid */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: 20, maxWidth: 1000, width: '100%', marginTop: 80 }}>
+           {[
+             { title: 'Local Shopping', desc: 'Buy from your favourite neighbourhood stores.', icon: '🛒' },
+             { title: 'Fast Delivery', desc: 'Get items delivered to your doorstep in minutes.', icon: '⚡' },
+             { title: 'Service Booking', desc: 'Book skilled professionals for your home needs.', icon: '🛠️' },
+           ].map((f, i) => (
+             <div key={i} style={{ padding: 30, background: '#fff', borderRadius: 24, border: '1.5px solid var(--parchment)', boxShadow: '0 4px 10px rgba(0,0,0,0.03)' }}>
+               <div style={{ fontSize: '2rem', marginBottom: 16 }}>{f.icon}</div>
+               <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--brown-deep)', marginBottom: 10 }}>{f.title}</h3>
+               <p style={{ color: 'var(--brown-mid)', lineHeight: 1.4, fontSize: '.9rem', fontWeight: 600 }}>{f.desc}</p>
+             </div>
+           ))}
         </div>
       </section>
 
-      <footer style={{
-        textAlign: 'center', padding: 28,
-        borderTop: '1px solid var(--parchment)',
-        fontSize: '.75rem', color: 'var(--brown-light)', fontStyle: 'italic',
-      }}>
-        © 2025 KadaiConnect · AI-Powered Hyperlocal Commerce Platform · Tamil Nadu
+      <footer style={{ textAlign: 'center', padding: '40px 20px', borderTop: '1px solid var(--parchment)', fontSize: '.8rem', color: 'var(--brown-mid)', fontWeight: 600 }}>
+        © 2025 KadaiConnect · Hyperlocal eCommerce Platform · Tamil Nadu
       </footer>
 
       {/* Modals */}
-      {openModal === 'shopkeeper' && (
-        <Modal role="shopkeeper" title="Shopkeeper Portal" icon="🏪"
+      {openModal && (
+        <Modal role={openModal} title={LANG[openModal === 'shopkeeper' ? 'shop' : openModal === 'customer' ? 'cust' : 'del']} 
+          icon={openModal === 'shopkeeper' ? '🏪' : openModal === 'customer' ? '🛍️' : '🛵'}
           onClose={() => setOpenModal(null)} onLogin={handleLogin} apiFetch={apiFetch}/>
-      )}
-      {openModal === 'customer' && (
-        <Modal role="customer" title="Customer Portal" icon="🛍️"
-          onClose={() => setOpenModal(null)} onLogin={handleLogin} apiFetch={apiFetch}/>
-      )}
-      {openModal === 'delivery' && (
-        <Modal role="delivery" title="Delivery Partner" icon="🛵"
-          onClose={() => setOpenModal(null)} onLogin={handleLogin}/>
       )}
     </div>
   );
@@ -637,22 +519,17 @@ const Login = () => {
 
 const CtaBtn = ({ children, onClick, variant, icon }) => {
   const styles = {
-    primary: { background: 'var(--brown-deep)', color: 'var(--gold-light)', borderColor: 'var(--gold)', boxShadow: '4px 4px 0 var(--gold)' },
+    primary: { background: 'var(--brown-deep)', color: 'var(--gold-light)', borderColor: 'var(--gold)' },
     secondary: { background: 'transparent', color: 'var(--brown-deep)', borderColor: 'var(--brown-mid)' },
-    accent: { background: 'var(--gold)', color: 'var(--brown-deep)', borderColor: 'var(--brown-mid)', boxShadow: '4px 4px 0 var(--brown-deep)' },
+    accent: { background: 'var(--gold)', color: 'var(--brown-deep)', borderColor: 'var(--brown-mid)' },
   };
   const s = styles[variant];
   return (
     <button onClick={onClick} style={{
-      padding: '14px 28px', borderRadius: 4, fontFamily: 'var(--font-d)',
-      fontSize: '.95rem', fontWeight: 700, letterSpacing: '.5px', cursor: 'pointer',
-      border: '2px solid transparent', transition: '.25s', display: 'inline-flex',
-      alignItems: 'center', gap: 10, ...s,
-    }}
-      onMouseEnter={e => { e.currentTarget.style.transform = 'translate(-2px,-2px)'; }}
-      onMouseLeave={e => { e.currentTarget.style.transform = ''; }}
-    >
-      <span>{icon}</span> {children}
+       display: 'inline-flex', alignItems: 'center', gap: 10, fontSize: '.95rem', fontWeight: 800,
+       padding: '14px 28px', borderRadius: 14, border: '2px solid', cursor: 'pointer', transition: '.2s', ...s
+    }}>
+      <span style={{ fontSize: '1.2rem' }}>{icon}</span> {children}
     </button>
   );
 };

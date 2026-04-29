@@ -1,4 +1,4 @@
-from rest_framework import viewsets, permissions, status
+from rest_framework import viewsets, permissions, status, parsers
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from .models import Store
@@ -7,6 +7,7 @@ from .serializers import StoreSerializer
 class StoreViewSet(viewsets.ModelViewSet):
     queryset = Store.objects.filter(is_active=True)
     serializer_class = StoreSerializer
+    parser_classes = (parsers.MultiPartParser, parsers.FormParser, parsers.JSONParser)
     
     def get_permissions(self):
         if self.action in ['list', 'retrieve']:
@@ -20,10 +21,12 @@ class StoreViewSet(viewsets.ModelViewSet):
             return Response({'detail': 'No store found'}, status=status.HTTP_404_NOT_FOUND)
         
         if request.method in ['PATCH', 'PUT']:
+            # print(f"UPDATING STORE {store.id} with data: {request.data}")
             serializer = self.get_serializer(store, data=request.data, partial=True)
             serializer.is_valid(raise_exception=True)
-            serializer.save()
-            return Response(serializer.data)
+            updated_store = serializer.save()
+            # print(f"STORE UPDATED: {updated_store.name}")
+            return Response(StoreSerializer(updated_store, context={'request': request}).data)
             
         serializer = self.get_serializer(store)
         return Response(serializer.data)
@@ -35,8 +38,9 @@ class StoreViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(store)
         data = serializer.data
         return Response({
-            'name': data['name'],
-            'rating': data['rating'],
+            'name': data.get('name', ''),
+            'address': data.get('address', ''),
+            'location': data.get('location', ''),
             'product_count': data['product_count'],
             'service_count': data['service_count'],
             'has_products': data['has_products'],

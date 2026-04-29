@@ -9,7 +9,7 @@ import {
   Package, 
   ShoppingBag, 
   Sparkles, 
-   Megaphone, 
+  Megaphone, 
   Truck, 
   Briefcase, 
   CalendarDays,
@@ -26,14 +26,19 @@ import {
   ToggleLeft,
   ToggleRight,
   Trash2,
-  ArrowLeft
+  ArrowLeft,
+  IndianRupee,
+  X
 } from 'lucide-react';
 import GoogleMapView from '../components/GoogleMapView';
+import DeliveryMap from '../components/DeliveryMap';
 import FestivalCalendar from '../components/FestivalCalendar';
 import ServiceManager from '../components/ServiceManager';
 import BookingsPanel from '../components/BookingsPanel';
 import { useVoiceAssistant } from '../hooks/useVoiceAssistant';
 import { parseProductVoiceCommand } from '../utils/aiUtils';
+import ItemGrid from '../components/ItemGrid';
+import NotificationPanel from '../components/NotificationPanel';
 
 const S = {
   sidebar: { width: 210, minHeight: '100vh', background: 'var(--brown-deep)', display: 'flex', flexDirection: 'column', position: 'fixed', top: 0, left: 0, bottom: 0, zIndex: 50, borderRight: '2px solid var(--gold)', transition: '.3s' },
@@ -75,18 +80,42 @@ function UploadModal({ onClose, onSave, editItem, mode = 'product', showToast })
   const { t, i18n } = useTranslation();
   const { apiFetch } = useAuth();
   const { speak, listen, stopListening, isListening, listeningError, volume } = useVoiceAssistant();
+  
+  const [step, setStep] = useState(editItem ? 2 : 1);
+  const [categories, setCategories] = useState([]);
+  const [mainCatId, setMainCatId] = useState(editItem?.category_parent_id || '');
+  const [subCatId, setSubCatId] = useState(editItem?.category || '');
+  const [uploadType, setUploadType] = useState(editItem?.type || mode);
+  const [isOther, setIsOther] = useState(false);
+  const [newCatName, setNewCatName] = useState('');
+  
   const [activeTab, setActiveTab] = useState('manual');
   
-  const initialForm = mode === 'service' 
+  const initialForm = uploadType === 'service' 
     ? { name: '', name_ta: '', description: '', price: '', duration_minutes: 60, imgUrl: '' }
-    : { name: '', name_ta: '', category: 'Textiles', price: '', stock: '', fabric: '', color: '', size: '', desc: '', imgUrl: '', festival: '' };
+    : { name: '', name_ta: '', price: '', stock: '', fabric: '', color: '', size: '', desc: '', imgUrl: '', festival: '' };
     
   const [form, setForm] = useState(editItem || initialForm);
   const [voiceError, setVoiceError] = useState('');
   const [vTranscript, setVTranscript] = useState('');
 
-  const isService = mode === 'service';
+  const isService = uploadType === 'service';
   const isTa = i18n.language.startsWith('ta');
+
+  useEffect(() => {
+    const fetchCats = async () => {
+      const res = await apiFetch(`/api/products/categories/?type=${uploadType}&top_level=true`);
+      if (res?.ok) setCategories(await res.json());
+    };
+    fetchCats();
+  }, [uploadType]);
+
+  useEffect(() => {
+    if (editItem) {
+      setMainCatId(editItem.category_parent_id || '');
+      setSubCatId(editItem.category_id || editItem.category || '');
+    }
+  }, [editItem]);
 
   const f = (k, v) => setForm(p => ({ ...p, [k]: v }));
   
@@ -232,28 +261,31 @@ function UploadModal({ onClose, onSave, editItem, mode = 'product', showToast })
   const handleSave = async () => {
     if (!form.name || !form.price) return showToast(isTa ? 'பெயர் மற்றும் விலை உள்ளிடவும்.' : 'Enter name and price.');
     
+    const payload = {
+      ...form,
+      id: editItem?.id || null,
+      type: uploadType,
+      category: isOther ? 'others' : (subCatId || mainCatId),
+      new_category_name: isOther ? newCatName : undefined,
+      parent: isOther ? mainCatId : undefined,
+      price: parseFloat(form.price),
+    };
+
     if (isService) {
-      await onSave({ 
-        ...form, 
-        id: editItem?.id || null,
-        price: parseFloat(form.price), 
-        duration_minutes: parseInt(form.duration_minutes) || 60 
-      });
+      payload.duration_minutes = parseInt(form.duration_minutes) || 60;
     } else {
-      let finalCategory = form.category;
-      if (form.category === 'Other') {
-        finalCategory = form.customCategory || 'General';
-      }
-      await onSave({ 
-        ...form, 
-        id: editItem?.id || null, 
-        category: finalCategory, 
-        emoji: EMOJIS[finalCategory] || '📦', 
-        price: parseFloat(form.price), 
-        stock: parseInt(form.stock) || 0 
-      });
+      payload.stock = parseInt(form.stock) || 0;
     }
+
+    await onSave(payload);
   };
+
+  const currentMain = categories.find(c => c.id == mainCatId);
+  const subcategories = currentMain?.subcategories || [];
+
+  const canGoNext = mainCatId === 'others' 
+    ? !!newCatName 
+    : !!mainCatId; // Subcategory is optional now
 
   const tabs = ['image', 'voice', 'manual'];
   return (
@@ -274,6 +306,80 @@ function UploadModal({ onClose, onSave, editItem, mode = 'product', showToast })
           <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: '1.3rem', cursor: 'pointer', color: 'var(--brown-mid)' }}>✕</button>
         </div>
         
+        {step === 1 ? (
+          <div style={{ marginTop: 20 }}>
+            <div style={{ fontSize: '.85rem', color: 'var(--brown-mid)', marginBottom: 20 }}>{isTa ? 'தொடர்வதற்கு முன் வகையைத் தேர்வு செய்யவும்' : 'Please select a category before proceeding'}</div>
+            
+            <div style={{ marginBottom: 15 }}>
+              <label style={{ display: 'block', fontSize: '.7rem', letterSpacing: '.8px', textTransform: 'uppercase', color: 'var(--brown-mid)', marginBottom: 6 }}>{isTa ? 'வகை (Type)' : 'Type'}</label>
+              <div style={{ display: 'flex', gap: 10 }}>
+                {['product', 'service'].map(t => (
+                  <button key={t} onClick={() => setUploadType(t)} style={{ flex: 1, padding: '10px', borderRadius: 8, border: `2px solid ${uploadType === t ? 'var(--gold)' : 'var(--parchment)'}`, background: uploadType === t ? 'var(--gold-pale)' : 'transparent', fontWeight: 700, color: 'var(--brown-deep)', textTransform: 'capitalize' }}>
+                    {t === 'product' ? '📦 ' + (isTa ? 'பொருள்' : 'Product') : '🛠️ ' + (isTa ? 'சேவை' : 'Service')}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div style={{ marginBottom: 15 }}>
+              <label style={{ display: 'block', fontSize: '.7rem', letterSpacing: '.8px', textTransform: 'uppercase', color: 'var(--brown-mid)', marginBottom: 6 }}>{isTa ? 'முதன்மை வகை' : 'Main Category'}</label>
+              <select style={S.formInput} value={mainCatId} onChange={e => { 
+                if (e.target.value === 'others') {
+                  setIsOther(true);
+                  setMainCatId('others');
+                  setSubCatId('');
+                } else {
+                  setMainCatId(e.target.value); 
+                  setSubCatId(''); 
+                  setIsOther(false); 
+                }
+              }}>
+                <option value="">{isTa ? '-- தேர்வு செய்க --' : '-- Select --'}</option>
+                {categories.filter(c => isNaN(c.name)).map(c => <option key={c.id} value={c.id}>{isTa ? (c.name_ta || c.name) : c.name} {c.icon}</option>)}
+                <option value="others" style={{ fontStyle: 'italic', color: 'var(--gold)' }}>✨ {isTa ? 'மற்றவை / புதிய வகை' : 'Others / Add New'}</option>
+              </select>
+            </div>
+
+            {mainCatId && mainCatId !== 'others' && (
+              <div style={{ marginBottom: 20 }}>
+                <label style={{ display: 'block', fontSize: '.7rem', letterSpacing: '.8px', textTransform: 'uppercase', color: 'var(--brown-mid)', marginBottom: 6 }}>{isTa ? 'துணை வகை' : 'Subcategory'}</label>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                  {subcategories.map(s => (
+                    <button key={s.id} onClick={() => { setSubCatId(s.id); setIsOther(false); }} style={{ padding: '8px', borderRadius: 6, border: `1.5px solid ${subCatId == s.id && !isOther ? 'var(--gold)' : 'var(--parchment)'}`, background: subCatId == s.id && !isOther ? 'var(--gold-pale)' : 'white', fontSize: '.75rem', textAlign: 'left', fontWeight: 600 }}>
+                      {isTa ? (s.name_ta || s.name) : s.name}
+                    </button>
+                  ))}
+                  <button onClick={() => { setIsOther(true); setSubCatId('others'); }} style={{ padding: '8px', borderRadius: 6, border: `1.5px solid ${isOther ? 'var(--gold)' : 'var(--parchment)'}`, background: isOther ? 'var(--gold-pale)' : 'white', fontSize: '.75rem', textAlign: 'left', fontWeight: 600, fontStyle: 'italic' }}>
+                    ✨ {isTa ? 'மற்றவை / புதிதாக' : 'Others / Add New'}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {(isOther || mainCatId === 'others') && (
+              <div style={{ marginBottom: 20 }}>
+                <label style={{ display: 'block', fontSize: '.7rem', letterSpacing: '.8px', textTransform: 'uppercase', color: 'var(--brown-mid)', marginBottom: 6 }}>
+                  {mainCatId === 'others' ? (isTa ? 'புதிய முதன்மை வகையின் பெயர்' : 'New Main Category Name') : (isTa ? 'புதிய துணை வகையின் பெயர்' : 'New Subcategory Name')}
+                </label>
+                <input 
+                  style={S.formInput} 
+                  placeholder={mainCatId === 'others' ? (isTa ? 'உ.ம். எலக்ட்ரானிக்ஸ்' : 'e.g. Electronics') : (isTa ? 'உ.ம். மொபைல் போன்கள்' : 'e.g. Mobile Phones')} 
+                  value={newCatName} 
+                  onChange={e => setNewCatName(e.target.value)} 
+                />
+              </div>
+            )}
+
+            <button 
+              disabled={!canGoNext}
+              onClick={() => setStep(2)}
+              style={{ ...S.btnPrimary, width: '100%', justifyContent: 'center', opacity: canGoNext ? 1 : 0.5, cursor: canGoNext ? 'pointer' : 'not-allowed', marginTop: 10 }}
+            >
+              {isTa ? 'அடுத்து (Next) →' : 'Next Step →'}
+            </button>
+          </div>
+        ) : (
+          <>
         {activeTab === 'voice' ? (
           <div style={{ textAlign: 'center', padding: '20px 0', background: 'var(--cream-dark)', borderRadius: 8, marginBottom: 20, border: `1px dashed ${voiceError ? 'var(--rust)' : 'var(--gold)'}` }}>
             <div style={{ fontSize: '3rem', marginBottom: 15, animation: isListening ? 'pulse 1.5s infinite' : 'none' }}>{isListening ? '🎙️' : '🎤'}</div>
@@ -304,7 +410,12 @@ function UploadModal({ onClose, onSave, editItem, mode = 'product', showToast })
             <style>{`@keyframes pulse { 0% { opacity: 0.5; transform: scale(1); } 50% { opacity: 1; transform: scale(1.1); } 100% { opacity: 0.5; transform: scale(1); } }`}</style>
           </div>
         ) : (
-          <div style={{ fontSize: '.8rem', color: 'var(--brown-mid)', fontStyle: 'italic', marginBottom: 18 }}>{isTa ? 'சரக்கில் சேர் — AI தானாகவே விவரங்களை நிரப்பும்' : 'Add to inventory — AI fills details automatically'}</div>
+          <div style={{ fontSize: '.8rem', color: 'var(--brown-mid)', fontStyle: 'italic', marginBottom: 18 }}>
+            📍 {isTa ? 'வகை' : 'Category'}: <span style={{ color: 'var(--gold)', fontWeight: 800 }}>
+              {currentMain?.name || (mainCatId === 'others' ? newCatName : '')} 
+              {(subCatId && subCatId !== 'others') ? ` › ${subcategories.find(s => s.id == subCatId)?.name}` : (isOther && subCatId === 'others' ? ` › ${newCatName}` : '')}
+            </span>
+          </div>
         )}
 
         <div style={{ display: 'flex', gap: 8, marginBottom: 18 }}>
@@ -378,35 +489,25 @@ function UploadModal({ onClose, onSave, editItem, mode = 'product', showToast })
             </div>
           ))}
           {!isService && (
-            <>
-              <div>
-                <label style={{ display: 'block', fontSize: '.7rem', letterSpacing: '.8px', textTransform: 'uppercase', color: 'var(--brown-mid)', marginBottom: 4 }}>{isTa ? 'வகை' : 'Category'}</label>
-                <select style={S.formInput} value={form.category} onChange={e => f('category', e.target.value)}>
-                  {Object.keys(EMOJIS).map(c => <option key={c}>{c}</option>)}
-                  <option value="Other">{isTa ? 'மற்றவை (Other)' : 'Other'}</option>
-                </select>
-                {form.category === 'Other' && (
-                  <input style={{ ...S.formInput, marginTop: 8 }} placeholder={isTa ? 'வகையை உள்ளிடவும்' : 'Type category...'} value={form.customCategory || ''} onChange={e => f('customCategory', e.target.value)}/>
-                )}
-              </div>
-              <div>
-                <label style={{ display: 'block', fontSize: '.7rem', letterSpacing: '.8px', textTransform: 'uppercase', color: 'var(--brown-mid)', marginBottom: 4 }}>{isTa ? 'திருவிழா குறிச்சொல்' : 'Festival Tag'}</label>
-                <select style={S.formInput} value={form.festival} onChange={e => f('festival', e.target.value)}>
-                  <option value="">{isTa ? 'ஏதுமில்லை (None)' : 'None'}</option>
-                  {FESTIVALS.filter(fest => new Date(fest.date) >= new Date()).map(fest => (
-                    <option key={fest.name.toLowerCase()} value={fest.name.toLowerCase()}>{isTa ? fest.name_ta : fest.name}</option>
-                  ))}
-                </select>
-              </div>
-            </>
+            <div>
+              <label style={{ display: 'block', fontSize: '.7rem', letterSpacing: '.8px', textTransform: 'uppercase', color: 'var(--brown-mid)', marginBottom: 4 }}>{isTa ? 'திருவிழா குறிச்சொல்' : 'Festival Tag'}</label>
+              <select style={S.formInput} value={form.festival} onChange={e => f('festival', e.target.value)}>
+                <option value="">{isTa ? 'ஏதுமில்லை (None)' : 'None'}</option>
+                {FESTIVALS.filter(fest => new Date(fest.date) >= new Date()).map(fest => (
+                  <option key={fest.name.toLowerCase()} value={fest.name.toLowerCase()}>{isTa ? fest.name_ta : fest.name}</option>
+                ))}
+              </select>
+            </div>
           )}
         </div>
         <div style={{ display: 'flex', gap: 10, marginTop: 18 }}>
-          <button onClick={onClose} style={{ flex: 1, padding: 12, borderRadius: 4, border: '2px solid var(--parchment)', background: 'transparent', color: 'var(--brown-mid)', cursor: 'pointer', fontFamily: 'var(--font-d)' }}>{isTa ? 'ரத்துசெய்' : 'Cancel'}</button>
+          <button onClick={() => setStep(1)} style={{ flex: 1, padding: 12, borderRadius: 4, border: '2px solid var(--parchment)', background: 'transparent', color: 'var(--brown-mid)', cursor: 'pointer', fontFamily: 'var(--font-d)' }}>{isTa ? '← பின்செல்லவும்' : '← Back'}</button>
           <button onClick={handleSave} style={{ flex: 2, padding: 12, borderRadius: 4, background: 'var(--brown-deep)', color: 'var(--gold-light)', border: '2px solid var(--gold)', fontFamily: 'var(--font-d)', fontWeight: 700, cursor: 'pointer' }}>
             {isTa ? `✅ ${isService ? 'சேவையைச் சேமி' : 'பொருளைச் சேமி'}` : `✅ Save ${isService ? 'Service' : 'Product'}`}
           </button>
         </div>
+        </>
+        )}
       </div>
     </div>
   );
@@ -419,6 +520,35 @@ function MarketingHub({ products, services, storeData, isTa, apiFetch, showToast
   const [loading, setLoading] = useState(false);
   const [campaignData, setCampaignData] = useState(null);
   const [showInstaPopup, setShowInstaPopup] = useState(false);
+  
+  // Growth Features State
+  const [isFreeDelivery, setIsFreeDelivery] = useState(storeData?.first_order_free_enabled ?? true);
+  const [maxCap, setMaxCap] = useState(storeData?.max_free_delivery_cap ?? 50);
+
+  const toggleFreeDelivery = async () => {
+    const newVal = !isFreeDelivery;
+    setIsFreeDelivery(newVal);
+    try {
+      await apiFetch('/api/stores/mine/', {
+        method: 'PATCH',
+        body: JSON.stringify({ first_order_free_enabled: newVal })
+      });
+      showToast(isTa ? `முதல் ஆர்டர் இலவச டெலிவரி ${newVal ? 'செயல்படுத்தப்பட்டது' : 'முடக்கப்பட்டது'}` : `First order free delivery ${newVal ? 'enabled' : 'disabled'}`);
+    } catch (e) {
+      console.error(e);
+      setIsFreeDelivery(!newVal); // Rollback
+    }
+  };
+
+  const updateMaxCap = async (val) => {
+    setMaxCap(val);
+    try {
+      await apiFetch('/api/stores/mine/', {
+        method: 'PATCH',
+        body: JSON.stringify({ max_free_delivery_cap: val })
+      });
+    } catch (e) { console.error(e); }
+  };
 
   const handleInstagramShare = async () => {
     // 1. Copy caption to clipboard in the background
@@ -607,6 +737,37 @@ function MarketingHub({ products, services, storeData, isTa, apiFetch, showToast
             />
           </div>
 
+      <div style={{ ...S.panel, marginBottom: 24, background: 'linear-gradient(135deg, #fff, #fff9f0)', border: '2px solid var(--gold)' }}>
+        <div style={{ ...S.panelTitle, color: 'var(--gold-deep)' }}>🚀 {isTa ? 'வளர்ச்சி எஞ்சின்' : 'Growth Engine'}</div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 20 }}>
+          <div>
+            <div style={{ fontWeight: 800, color: 'var(--brown-deep)', fontSize: '.9rem' }}>{isTa ? 'முதல் ஆர்டர் இலவச டெலிவரி' : 'First Order Free Delivery'}</div>
+            <div style={{ fontSize: '.75rem', color: 'var(--brown-mid)', marginTop: 4 }}>{isTa ? 'புதிய வாடிக்கையாளர்களை ஈர்க்க அவர்களின் முதல் டெலிவரி கட்டணத்தை நீங்கள் ஏற்கலாம்.' : 'Attract new customers by covering their first delivery fee.'}</div>
+          </div>
+          <div onClick={toggleFreeDelivery} style={{ width: 50, height: 26, background: isFreeDelivery ? 'var(--green)' : 'var(--parchment)', borderRadius: 20, position: 'relative', cursor: 'pointer', transition: '.3s' }}>
+            <div style={{ position: 'absolute', top: 3, left: isFreeDelivery ? 27 : 3, width: 20, height: 20, background: '#fff', borderRadius: '50%', transition: '.3s', boxShadow: '0 2px 5px rgba(0,0,0,0.2)' }} />
+          </div>
+        </div>
+
+        {isFreeDelivery && (
+          <div style={{ marginTop: 20, borderTop: '1px dashed var(--parchment)', paddingTop: 20, display: 'flex', alignItems: 'center', gap: 15 }}>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: '.75rem', fontWeight: 800, color: 'var(--brown-deep)' }}>{isTa ? 'அதிகபட்ச கட்டணம் (கேப்)' : 'Maximum Subsidy Cap'}</div>
+              <div style={{ fontSize: '.68rem', color: 'var(--brown-mid)', marginTop: 2 }}>{isTa ? 'இதற்கு மேலான கட்டணத்தை வாடிக்கையாளர் செலுத்துவார்.' : 'Fees above this amount will be paid by the customer.'}</div>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--cream-dark)', padding: '6px 12px', borderRadius: 8, border: '1.5px solid var(--parchment)' }}>
+               <span style={{ fontWeight: 800, color: 'var(--gold)' }}>₹</span>
+               <input 
+                 type="number" 
+                 value={maxCap}
+                 onChange={(e) => updateMaxCap(e.target.value)}
+                 style={{ width: 50, border: 'none', background: 'transparent', fontWeight: 900, color: 'var(--brown-deep)', outline: 'none' }}
+               />
+            </div>
+          </div>
+        )}
+      </div>
+
           {/* Share Actions */}
           <div style={{ ...S.panel, background: 'var(--brown-deep)', color: 'var(--cream)', border: 'none' }}>
             <div style={{ ...S.panelTitle, color: 'var(--gold-light)' }}>🚀 {isTa ? 'பகிரவும்' : 'Share Now'}</div>
@@ -659,10 +820,11 @@ function MarketingHub({ products, services, storeData, isTa, apiFetch, showToast
 export default function ShopkeeperDashboard() {
   const { t, i18n } = useTranslation();
   const isTa = i18n.language.startsWith('ta');
-  const { user, logout, apiFetch } = useAuth();
+  const { user, logout, apiFetch, updateUser } = useAuth();
   const navigate = useNavigate();
   const [section, setSection] = useState('dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [notificationOpen, setNotificationOpen] = useState(false);
   const [showUpload, setShowUpload] = useState(false);
   const [editProd, setEditProd] = useState(null);
   const [toast, setToast] = useState({ msg: '', visible: false });
@@ -670,21 +832,41 @@ export default function ShopkeeperDashboard() {
   const [services, setServices] = useState([]);
   const [dbOrders, setDbOrders] = useState([]);
   const [storeData, setStoreData] = useState(null);
-  const [storeEdit, setStoreEdit] = useState({ name: '', location: '', category: '', logo: null, banner: null, pincode: '' });
+  const [storeEdit, setStoreEdit] = useState({ name: '', address: '', location: '', category: '', description: '', logo: null, banner: null, pincode: '', contact_name: '', phone: '', district: '' });
   const [loading, setLoading] = useState(false); // Start false — was deadlocked at true
-  const [showNotifications, setShowNotifications] = useState(false);
-  const [notifications, setNotifications] = useState([]);
   const [insights, setInsights] = useState({ demands: [], service_demands: [], suggestions: [] });
   const [isNewUser, setIsNewUser] = useState(false);
   const [campaignOutput, setCampaignOutput] = useState('');
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [uploadMode, setUploadMode] = useState('product'); // 'product' or 'service'
   const [editItem, setEditItem] = useState(null);
+  const [selectedProduct, setSelectedProduct] = useState(null);
+  const [trackingOrder, setTrackingOrder] = useState(null);
+  const [trackingLocation, setTrackingLocation] = useState(null);
+
   
   const TN_DISTRICTS = ["Chennai", "Coimbatore", "Madurai", "Tiruchirappalli", "Salem", "Tirunelveli", "Erode", "Vellore", "Thoothukudi", "Thanjavur", "Dindigul", "Ranipet", "Virudhunagar", "Kanyakumari", "Theni", "Namakkal", "Tiruppur", "Kancheepuram", "Chengalpattu", "Thiruvallur", "Cuddalore", "Nagapattinam", "Pudukkottai", "Sivaganga", "Tiruvarur", "Tiruvannamalai", "Viluppuram", "Ariyalur", "Dharmapuri", "Karur", "Krishnagiri", "Perambalur", "Ramanathapuram", "The Nilgiris", "Tenkasi", "Mayiladuthurai", "Kallakurichi", "Tirupathur"];
   
   const [festivals, setFestivals] = useState([]);
   const [nextFestival, setNextFestival] = useState(null);
+
+  useEffect(() => {
+    if (storeData) {
+      setStoreEdit({
+        name: storeData.name || '',
+        address: storeData.address || '',
+        location: storeData.location || '',
+        category: storeData.category || 'General',
+        description: storeData.description || '',
+        contact_name: storeData.contact_name || '',
+        phone: storeData.phone || '',
+        district: storeData.district || 'Chennai',
+        pincode: storeData.pincode || '',
+        logo: null,
+        banner: null
+      });
+    }
+  }, [storeData]);
 
   useEffect(() => {
     if (storeData?.category) {
@@ -714,13 +896,19 @@ export default function ShopkeeperDashboard() {
   const fetchData = async () => {
     setLoading(true);
     try {
-        const [fResp, pResp, oResp, sResp, svResp] = await Promise.all([
+        const [fResp, pResp, oResp, sResp, svResp, uResp] = await Promise.all([
           apiFetch('/api/ai/festivals/'),
           apiFetch('/api/products/'),
           apiFetch('/api/orders/'),
           apiFetch('/api/stores/mine/'),
-          apiFetch('/api/services/')
+          apiFetch('/api/services/'),
+          apiFetch('/api/users/me/')
         ]);
+
+        if (uResp.ok) {
+          const uData = await uResp.json();
+          updateUser(uData);
+        }
 
         if (fResp.ok) {
           const data = await fResp.json();
@@ -758,8 +946,10 @@ export default function ShopkeeperDashboard() {
           setStoreData(sData);
           setStoreEdit({ 
             name: sData.name || '', 
+            address: sData.address || '', 
             location: sData.location || '', 
             category: sData.category || 'General',
+            description: sData.description || '',
             contact_name: sData.contact_name || '',
             phone: sData.phone || '',
             district: sData.district || 'Chennai',
@@ -783,46 +973,27 @@ export default function ShopkeeperDashboard() {
 
   useEffect(() => {
     fetchData();
-  }, [user]);
+  }, []);
 
+  // Poll for tracking location if modal is open
   useEffect(() => {
-    const newNotifs = [];
+    if (!trackingOrder) return;
     
-    // Low Stock Notifs
-    products.filter(p => p.stock < 5 && p.stock > 0).forEach(p => {
-      newNotifs.push({
-        id: `stock-${p.id}`,
-        type: 'stock',
-        text: isTa ? `${p.name} இருப்பு குறைவாக உள்ளது (${p.stock})` : `Low stock for ${p.name} (${p.stock})`,
-        time: isTa ? 'இப்போது' : 'Just now',
-        read: false
-      });
-    });
+    const interval = setInterval(async () => {
+      try {
+        const resp = await apiFetch(`/api/orders/${trackingOrder.id}/`);
+        if (resp.ok) {
+          const updatedOrder = await resp.json();
+          setTrackingOrder(updatedOrder);
+        }
+      } catch (e) {
+        console.error("Polling error", e);
+      }
+    }, 5000); // Poll every 5 seconds
+    
+    return () => clearInterval(interval);
+  }, [trackingOrder?.id]);
 
-    // Recent Order Notifs
-    dbOrders.filter(o => o.status === 'Pending').slice(0, 3).forEach(o => {
-      newNotifs.push({
-        id: `order-${o.id}`,
-        type: 'order',
-        text: isTa ? `புதிய ஆர்டர் #${o.id} - ${o.customer_name || 'வாடிக்கையாளர்'}` : `New Order #${o.id} from ${o.customer_name || 'Customer'}`,
-        time: isTa ? 'செயலில் உள்ளது' : 'Action Required',
-        read: false
-      });
-    });
-
-    // Festival Notifs
-    if (nextFestival && nextFestival.daysLeft <= 15) {
-      newNotifs.push({
-        id: `fest-${nextFestival.name}`,
-        type: 'ai',
-        text: isTa ? `${nextFestival.name_ta} வரவிருக்கிறது! உங்கள் இருப்பைச் சரிபார்க்கவும்.` : `${nextFestival.name} is coming! Check your inventory.`,
-        time: `${nextFestival.daysLeft} ${isTa ? 'நாட்கள்' : 'days left'}`,
-        read: true
-      });
-    }
-
-    setNotifications(newNotifs);
-  }, [products, dbOrders, nextFestival, isTa]);
 
   const showToast = (msg) => { setToast({ msg, visible: true }); setTimeout(() => setToast(t => ({ ...t, visible: false })), 3000); };
   const saveProducts = (p) => { setProducts(p); localStorage.setItem('kc_products', JSON.stringify(p)); };
@@ -859,13 +1030,27 @@ export default function ShopkeeperDashboard() {
     payload.append('price', formData.price);
     payload.append('stock', formData.stock || 0);
     payload.append('description', formData.desc || formData.description || '');
-    payload.append('category_name', formData.category);
+    
+    // Support hierarchical category resolution
+    if (formData.category === 'others') {
+      payload.append('category', 'others');
+      payload.append('new_category_name', formData.new_category_name);
+      if (formData.parent) payload.append('parent', formData.parent);
+      payload.append('type', 'product');
+    } else if (formData.category) {
+      payload.append('category', formData.category);
+    }
 
     if (formData.name_ta) payload.append('name_ta', formData.name_ta);
     if (formData.desc_ta || formData.description_ta) payload.append('description_ta', formData.desc_ta || formData.description_ta);
     if (formData.imageFile) payload.append('image', formData.imageFile);
-    if (formData.imgUrl && !formData.imageFile && formData.imgUrl.startsWith('http')) payload.append('imgUrl', formData.imgUrl);
+    if (formData.imgUrl && !formData.imageFile && formData.imgUrl.startsWith('http')) payload.append('image_url', formData.imgUrl);
     if (formData.festival) payload.append('festival', formData.festival);
+    
+    // Detailed fields
+    if (formData.color) payload.append('color', formData.color);
+    if (formData.size) payload.append('size', formData.size);
+    if (formData.fabric) payload.append('material', formData.fabric); // 'fabric' in frontend maps to 'material' in backend
 
     try {
       const resp = await apiFetch(url, { method, body: payload });
@@ -892,6 +1077,16 @@ export default function ShopkeeperDashboard() {
     payload.append('duration_minutes', formData.duration_minutes || 60);
     payload.append('description', formData.desc || formData.description || '');
 
+    // Support hierarchical category resolution for services
+    if (formData.category === 'others') {
+      payload.append('category', 'others');
+      payload.append('new_category_name', formData.new_category_name);
+      if (formData.parent) payload.append('parent', formData.parent);
+      payload.append('type', 'service');
+    } else if (formData.category) {
+      payload.append('category', formData.category);
+    }
+
     if (formData.name_ta) payload.append('name_ta', formData.name_ta);
     if (formData.imageFile) payload.append('image', formData.imageFile);
     if (formData.imgUrl && !formData.imageFile && formData.imgUrl.startsWith('http')) payload.append('image_url', formData.imgUrl);
@@ -914,12 +1109,14 @@ export default function ShopkeeperDashboard() {
     setLoading(true);
     const payload = new FormData();
     payload.append('name', storeEdit.name);
+    payload.append('address', storeEdit.address);
     payload.append('location', storeEdit.location);
     payload.append('category', storeEdit.category);
     payload.append('contact_name', storeEdit.contact_name);
     payload.append('phone', storeEdit.phone);
     payload.append('district', storeEdit.district);
     payload.append('pincode', storeEdit.pincode);
+    payload.append('description', storeEdit.description);
     if (storeEdit.logo) payload.append('logo', storeEdit.logo);
     if (storeEdit.banner) payload.append('banner', storeEdit.banner);
 
@@ -928,9 +1125,29 @@ export default function ShopkeeperDashboard() {
         method: 'PATCH',
         body: payload
       });
+      
+      // Also update the User profile to keep personal details in sync
+      const userPayload = {
+        name: storeEdit.contact_name,
+        phone: storeEdit.phone,
+        district: storeEdit.district,
+        address: storeEdit.address,
+        pincode: storeEdit.pincode
+      };
+      const userResp = await apiFetch('/api/users/me/', {
+        method: 'PATCH',
+        body: JSON.stringify(userPayload)
+      });
+
       if (resp?.ok) {
         const updated = await resp.json();
         setStoreData(updated);
+        
+        if (userResp.ok) {
+          const updatedUser = await userResp.json();
+          updateUser(updatedUser);
+        }
+
         showToast(isTa ? '✅ கடை விவரங்கள் புதுப்பிக்கப்பட்டன!' : '✅ Store profile updated!');
         setStoreEdit(prev => ({ ...prev, logo: null, banner: null })); // Reset file inputs
       } else {
@@ -979,6 +1196,7 @@ export default function ShopkeeperDashboard() {
     { key: 'festivals', icon: <Sparkles size={18} />, label: t('festivals'), show: true },
     { key: 'marketing', icon: <Megaphone size={18} />, label: t('marketing'), show: true },
     { key: 'deliveries', icon: <Truck size={18} />, label: t('deliveries'), show: hasProducts },
+    { key: 'earnings', icon: <IndianRupee size={18} />, label: isTa ? 'வருவாய்' : 'Earnings', show: true },
     { key: 'settings', icon: <UserCircle size={18} />, label: isTa ? 'கடை சுயவிவரம்' : 'Shop Profile', show: true },
   ].filter(n => n.show);
 
@@ -1035,6 +1253,7 @@ export default function ShopkeeperDashboard() {
 
   return (
     <div className="db-shell">
+      <NotificationPanel isOpen={notificationOpen} onClose={() => setNotificationOpen(false)} />
       {/* Sidebar Overlay (mobile) */}
       <div className={`db-overlay ${sidebarOpen ? 'active' : ''}`} onClick={() => setSidebarOpen(false)}/>
 
@@ -1100,6 +1319,25 @@ export default function ShopkeeperDashboard() {
         {/* TOP HEADER */}
         <header className="db-top-header">
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <button 
+              onClick={() => navigate(-1)} 
+              style={{ 
+                background: 'var(--brown-deep)', 
+                border: 'none', 
+                color: 'var(--gold-light)', 
+                cursor: 'pointer', 
+                width: 44, 
+                height: 44, 
+                borderRadius: 14, 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'center', 
+                boxShadow: '0 4px 10px rgba(0,0,0,0.1)', 
+                transition: '.2s' 
+              }}
+            >
+              <ArrowLeft size={22} />
+            </button>
             <button onClick={() => setSidebarOpen(true)} className="hamburger-btn" style={{ background: 'none', border: 'none', color: 'inherit', fontSize: '1.4rem', cursor: 'pointer', display: 'none', alignItems: 'center' }}>
               <Menu size={24} />
             </button>
@@ -1109,43 +1347,14 @@ export default function ShopkeeperDashboard() {
             </div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-            {/* Notification Bell */}
-            <div style={{ position: 'relative' }}>
-              <button 
-                onClick={() => setShowNotifications(!showNotifications)} 
-                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--header-icon-color, var(--brown-deep))', display: 'flex', alignItems: 'center', position: 'relative' }}
-              >
-                <Bell size={24} />
-                {notifications.filter(n => !n.read).length > 0 && (
-                  <span style={{ position: 'absolute', top: -4, right: -4, background: 'var(--rust)', color: '#fff', fontSize: '10px', width: 16, height: 16, borderRadius: '50%', display: 'grid', placeItems: 'center', fontWeight: 900, border: '2px solid var(--cream)' }}>
-                    {notifications.filter(n => !n.read).length}
-                  </span>
-                )}
-              </button>
-
-              {showNotifications && (
-                <div style={{ position: 'absolute', top: 'calc(100% + 15px)', right: -10, width: 300, background: 'var(--cream)', border: '2px solid var(--gold)', borderRadius: 12, boxShadow: '0 10px 40px rgba(0,0,0,0.15)', zIndex: 6000, overflow: 'hidden', animation: 'slideInDown .3s ease' }}>
-                  <div style={{ padding: '14px 18px', borderBottom: '1.5px solid var(--parchment)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--cream-dark)' }}>
-                    <span style={{ fontWeight: 800, fontSize: '.85rem', color: 'var(--brown-deep)' }}>{isTa ? 'அறிவிப்புகள்' : 'Notifications'}</span>
-                    <button onClick={() => setNotifications(n => n.map(x => ({...x, read: true})))} style={{ background: 'none', border: 'none', fontSize: '.65rem', color: 'var(--gold)', fontWeight: 700, cursor: 'pointer' }}>{isTa ? 'அனைத்தும் படி' : 'Mark all read'}</button>
-                  </div>
-                  <div style={{ maxHeight: 350, overflowY: 'auto' }}>
-                    {notifications.length > 0 ? notifications.map(n => (
-                      <div key={n.id} style={{ padding: '14px 18px', borderBottom: '1px solid var(--parchment)', background: n.read ? 'transparent' : 'rgba(201,146,26,.05)', position: 'relative', cursor: 'pointer' }} onMouseEnter={e => e.currentTarget.style.background = 'rgba(0,0,0,0.02)'} onMouseLeave={e => e.currentTarget.style.background = n.read ? 'transparent' : 'rgba(201,146,26,.05)'}>
-                        {!n.read && <div style={{ position: 'absolute', left: 6, top: '50%', transform: 'translateY(-50%)', width: 6, height: 6, borderRadius: '50%', background: 'var(--gold)' }} />}
-                        <div style={{ fontSize: '.78rem', color: 'var(--brown-deep)', fontWeight: n.read ? 400 : 700, marginBottom: 4 }}>{n.text}</div>
-                        <div style={{ fontSize: '.65rem', color: 'var(--brown-mid)', display: 'flex', alignItems: 'center', gap: 4 }}><Clock size={10}/> {n.time}</div>
-                      </div>
-                    )) : (
-                      <div style={{ padding: 30, textAlign: 'center', color: 'var(--brown-mid)', fontStyle: 'italic', fontSize: '.85rem' }}>{isTa ? 'அறிவிப்புகள் எதுவும் இல்லை' : 'No new notifications'}</div>
-                    )}
-                  </div>
-                  <div style={{ padding: 10, textAlign: 'center', borderTop: '1px solid var(--parchment)' }}>
-                    <button style={{ background: 'none', border: 'none', color: 'var(--brown-mid)', fontSize: '.7rem', fontWeight: 600, cursor: 'pointer' }}>{isTa ? 'அனைத்தையும் காண்க' : 'View all history'}</button>
-                  </div>
-                </div>
-              )}
-            </div>
+            <button 
+              onClick={() => setNotificationOpen(true)}
+              style={{ background: 'var(--cream)', border: '1.5px solid var(--parchment)', color: 'var(--brown-deep)', width: 38, height: 38, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: '.2s' }}
+              onMouseOver={e => e.currentTarget.style.borderColor = 'var(--gold)'}
+              onMouseOut={e => e.currentTarget.style.borderColor = 'var(--parchment)'}
+            >
+               <Bell size={18} />
+            </button>
 
             <button onClick={() => setSection('settings')} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10 }}>
               <div style={{ width: 34, height: 34, borderRadius: '50%', background: 'var(--gold)', display: 'grid', placeItems: 'center', border: '1.5px solid var(--gold-light)', boxShadow: '0 2px 8px rgba(0,0,0,0.1)', overflow: 'hidden' }}>
@@ -1215,7 +1424,7 @@ export default function ShopkeeperDashboard() {
                   {[
                     { label: t('todays_orders'), value: dbOrders.filter(o => new Date(o.created_at).toDateString() === new Date().toDateString()).length, change: isTa ? 'நிஜ நேர தரவு' : 'Real-time data', up: true },
                     { label: t('total_products'), value: products.length, change: isTa ? 'உங்கள் இருப்பிலிருந்து நேரலையில்' : 'Live from your inventory', up: true },
-                    { label: t('revenue_month'), value: '₹' + dbOrders.reduce((sum, o) => sum + Number(o.total_price), 0).toLocaleString(), change: isTa ? 'மொத்த வருவாய்' : 'Total revenue', up: true },
+                    { label: t('revenue_month'), value: '₹' + dbOrders.reduce((sum, o) => sum + (Number(o.total_price) - Number(o.delivery_charge)), 0).toLocaleString(), change: isTa ? 'மொத்த வருவாய்' : 'Net revenue', up: true },
                     { label: t('pending_deliveries'), value: dbOrders.filter(o => o.status !== 'Delivered' && o.status !== 'Cancelled').length, change: isTa ? 'செயலில் உள்ள ஆர்டர்கள்' : 'Active assignments', up: false },
                   ].map((s, i) => (
                     <div key={i} style={S.statCard}>
@@ -1332,7 +1541,7 @@ export default function ShopkeeperDashboard() {
                             <td style={{ padding: '12px 10px', borderBottom: '1px solid var(--parchment)' }}>#ORD-{o.id}</td>
                             <td style={{ padding: '12px 10px', borderBottom: '1px solid var(--parchment)' }}>{o.customer_name || 'Guest'}</td>
                             <td style={{ padding: '12px 10px', borderBottom: '1px solid var(--parchment)' }}>{o.items?.[0]?.product_name || 'Multiple'}</td>
-                            <td style={{ padding: '12px 10px', borderBottom: '1px solid var(--parchment)' }}>₹{Number(o.total_price).toLocaleString()}</td>
+                            <td style={{ padding: '12px 10px', borderBottom: '1px solid var(--parchment)' }}>₹{(Number(o.total_price) - Number(o.delivery_charge)).toLocaleString()}</td>
                             <td style={{ padding: '12px 10px', borderBottom: '1px solid var(--parchment)' }}>{new Date(o.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</td>
                             <td style={{ padding: '12px 10px', borderBottom: '1px solid var(--parchment)' }}>
                               <span style={{ ...S.statusBadge, 
@@ -1377,11 +1586,13 @@ export default function ShopkeeperDashboard() {
                 {hasProducts && (
                   <div style={{ ...S.panel, marginBottom: 24 }}>
                     <div style={S.panelTitle}>🛍️ {isTa ? 'சிறந்த தயாரிப்புகள்' : 'Top Products'}</div>
-                    <ProductGrid 
-                      products={products.slice(0, 4)} 
+                    <ItemGrid 
+                      items={products.slice(0, 4)} 
+                      type="product"
                       onEdit={(p) => { setUploadMode('product'); setEditItem(p); setShowUpload(true); }} 
                       onDelete={deleteProduct} 
                       onAdd={() => { setUploadMode('product'); setEditItem(null); setShowUpload(true); }}
+                      onSelect={setSelectedProduct}
                     />
                   </div>
                 )}
@@ -1389,30 +1600,17 @@ export default function ShopkeeperDashboard() {
                 {hasServices && (
                   <div style={S.panel}>
                     <div style={S.panelTitle}>🧵 {isTa ? 'சிறந்த சேவைகள்' : 'Top Services'}</div>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 16 }}>
-                      {services.slice(0, 4).map(s => (
-                        <div key={s.id} style={{ background: 'var(--cream-dark)', padding: 10, borderRadius: 12, border: '1.5px solid var(--parchment)', position: 'relative', boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}>
-                          <div style={{ height: 130, borderRadius: 8, background: s.image_url ? `url(${s.image_url}) center/cover no-repeat` : 'var(--parchment)', marginBottom: 8, display: 'grid', placeItems: 'center', fontSize: '2rem', overflow: 'hidden' }}>
-                            {!s.image_url && '🧵'}
-                          </div>
-                          <div style={{ fontFamily: 'var(--font-d)', fontSize: '.85rem', fontWeight: 700, color: 'var(--brown-deep)' }}>{s.name}</div>
-                          <div style={{ fontSize: '.8rem', color: 'var(--gold)', fontWeight: 800 }}>₹{s.price}</div>
-                          <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
-                            <button onClick={() => { setUploadMode('service'); setEditItem({ ...s, desc: s.description }); setShowUpload(true); }} style={{ flex: 1, padding: '4px', fontSize: '.65rem', borderRadius: 4, border: '1px solid var(--gold)', background: 'transparent', color: 'var(--gold)', cursor: 'pointer' }}>✏️</button>
-                            <button onClick={() => deleteService(s.id)} style={{ flex: 1, padding: '4px', fontSize: '.65rem', borderRadius: 4, border: '1px solid var(--rust)', background: 'transparent', color: 'var(--rust)', cursor: 'pointer' }}>🗑️</button>
-                          </div>
-                        </div>
-                      ))}
-                      <div 
-                        onClick={() => { setUploadMode('service'); setEditItem(null); setShowUpload(true); }}
-                        style={{ border: '2px dashed var(--parchment)', borderRadius: 10, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', padding: 12, minHeight: 150 }}
-                        onMouseEnter={e => e.currentTarget.style.background = 'var(--cream-dark)'}
-                        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                      >
-                        <div style={{ fontSize: '1.5rem', marginBottom: 4 }}>＋</div>
-                        <div style={{ fontSize: '.7rem', fontWeight: 700, color: 'var(--brown-mid)' }}>{isTa ? 'சேவை சேர்' : 'Add Service'}</div>
-                      </div>
-                    </div>
+                    <ItemGrid 
+                      items={services.slice(0, 4)} 
+                      type="service"
+                      onEdit={(srv) => { 
+                        setUploadMode('service'); 
+                        setEditItem({ ...srv, desc: srv.description, imgUrl: srv.image_url }); 
+                        setShowUpload(true); 
+                      }} 
+                      onDelete={deleteService}
+                      onAdd={() => { setUploadMode('service'); setEditItem(null); setShowUpload(true); }}
+                    />
                   </div>
                 )}
               </div>
@@ -1430,11 +1628,13 @@ export default function ShopkeeperDashboard() {
                 <button style={S.btnPrimary} onClick={() => { setUploadMode('product'); setEditItem(null); setShowUpload(true); }}>{isTa ? '+ புதிய பொருள் சேர்' : '+ Add Product'}</button>
               </div>
               <div style={S.panel}>
-                <ProductGrid 
-                  products={products} 
+                <ItemGrid 
+                  items={products} 
+                  type="product"
                   onEdit={(p) => { setUploadMode('product'); setEditItem(p); setShowUpload(true); }} 
                   onDelete={deleteProduct} 
                   onAdd={() => { setUploadMode('product'); setEditItem(null); setShowUpload(true); }}
+                  onSelect={setSelectedProduct}
                 />
               </div>
             </div>
@@ -1460,12 +1660,33 @@ export default function ShopkeeperDashboard() {
                         <div>
                           <div style={{ fontSize: '.73rem', color: 'var(--brown-mid)', fontWeight: 600 }}>#ORD-{o.id} · {new Date(o.created_at).toLocaleDateString()}</div>
                           <div style={{ fontFamily: 'var(--font-d)', fontSize: '1.05rem', fontWeight: 800, color: 'var(--brown-deep)' }}>{o.items?.[0]?.product_name || 'Multiple Items'}</div>
-                          <div style={{ fontSize: '.78rem', color: 'var(--brown-mid)' }}>{isTa ? 'வாடிக்கையாளர்' : 'Customer'}: <strong>{o.customer_name || 'Guest'}</strong></div>
+                          <div style={{ fontSize: '.8rem', color: 'var(--brown-deep)', fontWeight: 600, marginTop: 4 }}>
+                            👤 {o.customer_name || 'Guest'} {o.customer_phone && `· 📞 ${o.customer_phone}`}
+                          </div>
+                          <div style={{ fontSize: '.75rem', color: 'var(--brown-mid)', marginTop: 2, maxWidth: 350 }}>
+                            📍 {o.address || 'No address provided'}
+                          </div>
+                          {o.delivery_info?.partner_name && (
+                            <div style={{ fontSize: '.72rem', color: 'var(--green)', fontWeight: 700, marginTop: 6, background: 'rgba(45,106,79,0.08)', padding: '4px 10px', borderRadius: 6, display: 'inline-block' }}>
+                              🛵 Assigned to: {o.delivery_info.partner_name}
+                            </div>
+                          )}
                         </div>
                       </div>
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center' }}>
-                        <div style={{ textAlign: 'right', minWidth: 100 }}>
-                          <div style={{ fontSize: '.9rem', fontWeight: 900, color: 'var(--brown-deep)', marginBottom: 5 }}>₹{Number(o.total_price).toLocaleString()}</div>
+                        <div style={{ textAlign: 'right', minWidth: 140 }}>
+                          <div style={{ fontSize: '.65rem', color: 'var(--brown-mid)', marginBottom: 2 }}>
+                            {isTa ? 'தயாரிப்பு' : 'Product'}: ₹{(Number(o.total_price) - Number(o.delivery_charge)).toLocaleString()}
+                          </div>
+                          <div style={{ fontSize: '.65rem', color: 'var(--gold)', fontWeight: 700, marginBottom: 4 }}>
+                            {isTa ? 'டெலிவரி' : 'Delivery'}: ₹{Number(o.delivery_charge).toLocaleString()}
+                            {o.shopkeeper_paid_delivery > 0 && (
+                               <span style={{ marginLeft: 6, color: 'var(--rust)', fontStyle: 'italic' }}>
+                                 ({isTa ? 'நீங்கள் செலுத்தியது' : 'You Paid'} ₹{o.shopkeeper_paid_delivery})
+                               </span>
+                            )}
+                          </div>
+                          <div style={{ fontSize: '1rem', fontWeight: 900, color: 'var(--brown-deep)', marginBottom: 6, borderTop: '1px solid var(--parchment)', paddingTop: 4 }}>₹{Number(o.total_price).toLocaleString()}</div>
                           <span style={{ 
                             ...S.statusBadge, 
                             background: o.status === 'delivered' ? '#d4edda' : o.status === 'ready' ? '#cce5ff' : o.status === 'assigned' ? '#e2e3e5' : '#fff3cd', 
@@ -1475,13 +1696,23 @@ export default function ShopkeeperDashboard() {
                         
                         <div style={{ display: 'flex', gap: 8 }}>
                           {o.status === 'new' && (
-                            <button onClick={() => updateOrderStatus(o.id, 'confirmed')} style={{ padding: '6px 12px', background: 'var(--brown-deep)', color: 'var(--gold-light)', border: 'none', borderRadius: 8, fontSize: '.7rem', fontWeight: 800, cursor: 'pointer' }}>
-                              {isTa ? 'உறுதிப்படுத்து' : 'Confirm'}
+                            <>
+                              <button onClick={() => updateOrderStatus(o.id, 'confirmed')} style={{ padding: '6px 12px', background: 'var(--green)', color: '#fff', border: 'none', borderRadius: 8, fontSize: '.7rem', fontWeight: 800, cursor: 'pointer' }}>
+                                {isTa ? 'ஏற்றுக்கொள்' : 'Accept'}
+                              </button>
+                              <button onClick={() => updateOrderStatus(o.id, 'cancelled')} style={{ padding: '6px 12px', background: 'var(--rust)', color: '#fff', border: 'none', borderRadius: 8, fontSize: '.7rem', fontWeight: 800, cursor: 'pointer' }}>
+                                {isTa ? 'நிராகரி' : 'Reject'}
+                              </button>
+                            </>
+                          )}
+                          {o.status === 'confirmed' && (
+                            <button onClick={() => updateOrderStatus(o.id, 'packed')} style={{ padding: '6px 12px', background: 'var(--brown-deep)', color: 'var(--gold-light)', border: 'none', borderRadius: 8, fontSize: '.7rem', fontWeight: 800, cursor: 'pointer' }}>
+                              {isTa ? 'பேக் செய்யப்பட்டது' : 'Mark Packed'}
                             </button>
                           )}
-                          {(o.status === 'confirmed' || o.status === 'packed') && (
+                          {o.status === 'packed' && (
                             <button onClick={() => updateOrderStatus(o.id, 'ready')} style={{ padding: '6px 12px', background: 'var(--gold)', color: 'var(--brown-deep)', border: 'none', borderRadius: 8, fontSize: '.7rem', fontWeight: 800, cursor: 'pointer' }}>
-                              {isTa ? 'தயார்' : 'Mark Ready'}
+                              {isTa ? 'தயார்' : 'Ready for Delivery'}
                             </button>
                           )}
                         </div>
@@ -1509,28 +1740,117 @@ export default function ShopkeeperDashboard() {
             <MarketingHub products={products} services={services} storeData={storeData} isTa={isTa} apiFetch={apiFetch} showToast={showToast} />
           )}
 
+          {/* ── EARNINGS ── */}
+          {section === 'earnings' && (
+            <div>
+              <div style={{ fontFamily: 'var(--font-d)', fontSize: '1.5rem', fontWeight: 900, color: 'var(--brown-deep)', marginBottom: 24 }}>💰 <span style={{ color: 'var(--gold)' }}>{isTa ? 'வருவாய் மற்றும் வரலாறு' : 'Earnings & History'}</span></div>
+              
+              <div className="stats-grid" style={{ marginBottom: 24 }}>
+                {[
+                  { label: isTa ? 'மொத்த வருவாய்' : 'Total Revenue', value: '₹' + dbOrders.filter(o => o.status === 'delivered').reduce((s, o) => s + (Number(o.total_price) - Number(o.delivery_charge)), 0).toLocaleString(), icon: '💰' },
+                  { label: isTa ? 'டெலிவரி செய்யப்பட்டவை' : 'Delivered Orders', value: dbOrders.filter(o => o.status === 'delivered').length, icon: '✅' },
+                  { label: isTa ? 'நிலுவையில் உள்ளவை' : 'Pending Payout', value: '₹' + dbOrders.filter(o => o.status !== 'delivered' && o.status !== 'cancelled').reduce((s, o) => s + (Number(o.total_price) - Number(o.delivery_charge)), 0).toLocaleString(), icon: '⏳' },
+                ].map((s, i) => (
+                  <div key={i} style={{ ...S.panel, padding: '20px', display: 'flex', alignItems: 'center', gap: 15, marginBottom: 0 }}>
+                    <div style={{ fontSize: '2rem' }}>{s.icon}</div>
+                    <div>
+                      <div style={{ fontSize: '.7rem', color: 'var(--brown-mid)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{s.label}</div>
+                      <div style={{ fontFamily: 'var(--font-d)', fontSize: '1.5rem', fontWeight: 900, color: 'var(--brown-deep)' }}>{s.value}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div style={S.panel}>
+                <div style={S.panelTitle}>📊 {isTa ? 'வருவாய் விவரம்' : 'Earnings Breakdown'}</div>
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '.85rem' }}>
+                    <thead>
+                      <tr style={{ textAlign: 'left', borderBottom: '2px solid var(--parchment)' }}>
+                        <th style={{ padding: '12px 10px' }}>{isTa ? 'தேதி' : 'Date'}</th>
+                        <th style={{ padding: '12px 10px' }}>{isTa ? 'ஆர்டர்' : 'Order'}</th>
+                        <th style={{ padding: '12px 10px' }}>{isTa ? 'விற்பனை' : 'Product Sales'}</th>
+                        <th style={{ padding: '12px 10px' }}>{isTa ? 'டெலிவரி கட்டணம்' : 'Delivery Fee'}</th>
+                        <th style={{ padding: '12px 10px' }}>{isTa ? 'மொத்தம்' : 'Grand Total'}</th>
+                        <th style={{ padding: '12px 10px' }}>{isTa ? 'உங்களுக்கு சேரும் வருவாய்' : 'Your Net'}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {dbOrders.filter(o => o.status === 'delivered').map(o => (
+                        <tr key={o.id} style={{ borderBottom: '1px solid var(--parchment)' }}>
+                          <td style={{ padding: '12px 10px' }}>{new Date(o.created_at).toLocaleDateString()}</td>
+                          <td style={{ padding: '12px 10px', fontWeight: 700 }}>#ORD-{o.id}</td>
+                          <td style={{ padding: '12px 10px' }}>₹{(Number(o.total_price) - Number(o.delivery_charge)).toLocaleString()}</td>
+                          <td style={{ padding: '12px 10px', color: 'var(--gold)', fontWeight: 600 }}>₹{Number(o.delivery_charge).toLocaleString()}</td>
+                          <td style={{ padding: '12px 10px' }}>₹{Number(o.total_price).toLocaleString()}</td>
+                          <td style={{ padding: '12px 10px', fontWeight: 800, color: 'var(--green)' }}>₹{(Number(o.total_price) - Number(o.delivery_charge)).toLocaleString()}</td>
+                        </tr>
+                      ))}
+                      {dbOrders.filter(o => o.status === 'delivered').length === 0 && (
+                        <tr>
+                          <td colSpan="6" style={{ padding: '40px 10px', textAlign: 'center', color: 'var(--brown-mid)', fontStyle: 'italic' }}>
+                            {isTa ? 'வருவாய் வரலாறு எதுவும் இல்லை.' : 'No earning history yet.'}
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* ── DELIVERIES ── */}
           {section === 'deliveries' && (
             <div>
               <div style={{ fontFamily: 'var(--font-d)', fontSize: '1.5rem', fontWeight: 900, color: 'var(--brown-deep)', marginBottom: 24 }}>🗺️ <span style={{ color: 'var(--gold)' }}>{isTa ? 'டெலிவரிகள்' : 'Deliveries'}</span></div>
               <div style={S.panel}>
                 <div style={S.panelTitle}>📦 {isTa ? 'செயலில் உள்ள டெலிவரிகள்' : 'Active Deliveries'}</div>
-                {(dbOrders.filter(o => ['Processing', 'Out for Delivery', 'Shipped'].includes(o.status)).length > 0) ? (
-                  dbOrders.filter(o => ['Processing', 'Out for Delivery', 'Shipped'].includes(o.status)).map(d => {
+                {(dbOrders.filter(o => ['ready', 'assigned', 'picked_up', 'out_for_delivery'].includes(o.status)).length > 0) ? (
+                  dbOrders.filter(o => ['ready', 'assigned', 'picked_up', 'out_for_delivery'].includes(o.status)).map(d => {
                     const statusConfig = {
-                      'Processing': { bg: '#fff3cd', col: '#856404' },
-                      'Out for Delivery': { bg: '#cce5ff', col: '#004085' },
-                      'Shipped': { bg: '#d4edda', col: '#155724' }
+                      'ready': { bg: '#cce5ff', col: '#004085', icon: '🏪' },
+                      'assigned': { bg: '#e2e3e5', col: '#383d41', icon: '🤝' },
+                      'picked_up': { bg: '#d4edda', col: '#155724', icon: '📦' },
+                      'out_for_delivery': { bg: '#fff3cd', col: '#856404', icon: '🛵' }
                     };
-                    const cfg = statusConfig[d.status] || { bg: '#f8f9fa', col: '#333' };
+                    const cfg = statusConfig[d.status] || { bg: '#f8f9fa', col: '#333', icon: '🛵' };
+                    const dInfo = d.delivery_info;
+
                     return (
-                      <div key={d.id} style={{ background: 'var(--cream)', border: '1.5px solid var(--parchment)', borderRadius: 8, padding: 16, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 14 }}>
-                        <div style={{ fontSize: '1.5rem' }}>🛵</div>
-                        <div style={{ flex: 1 }}>
-                          <div style={{ fontFamily: 'var(--font-d)', fontSize: '.82rem', fontWeight: 700 }}>#ORD-{d.id} → {d.customer_name || 'Customer'}</div>
-                          <div style={{ fontSize: '.75rem', color: 'var(--brown-mid)' }}>{d.items?.[0]?.product_name || (isTa ? 'பல பொருட்கள்' : 'Multiple items')} · {isTa ? 'ETA கணிக்கப்படுகிறது' : 'ETA Calculating...'}</div>
+                      <div key={d.id} style={{ background: 'var(--cream)', border: '1.5px solid var(--parchment)', borderRadius: 12, padding: 20, marginBottom: 16, boxShadow: '0 4px 12px rgba(0,0,0,0.03)' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: dInfo ? 15 : 0 }}>
+                          <div style={{ fontSize: '1.8rem', background: 'var(--parchment)', width: 50, height: 50, borderRadius: 10, display: 'grid', placeItems: 'center' }}>{cfg.icon}</div>
+                          <div style={{ flex: 1 }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                              <div style={{ fontFamily: 'var(--font-d)', fontSize: '.95rem', fontWeight: 800 }}>#ORD-{d.id} → {d.customer_name || 'Customer'}</div>
+                              <span style={{ ...S.statusBadge, background: cfg.bg, color: cfg.col, fontSize: '.65rem' }}>{d.status.toUpperCase().replace('_', ' ')}</span>
+                            </div>
+                            <div style={{ fontSize: '.78rem', color: 'var(--brown-mid)', marginTop: 2 }}>{d.items?.[0]?.product_name || (isTa ? 'பல பொருட்கள்' : 'Multiple items')}</div>
+                          </div>
                         </div>
-                        <span style={{ ...S.statusBadge, background: cfg.bg, color: cfg.col }}>{d.status}</span>
+
+                          {dInfo && (
+                            <div style={{ background: 'rgba(255,255,255,0.5)', borderRadius: 8, padding: 12, border: '1px solid var(--parchment)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <div>
+                                <div style={{ fontSize: '.65rem', color: 'var(--brown-mid)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>{isTa ? 'டெலிவரி நபர்' : 'Delivery Partner'}</div>
+                                <div style={{ fontWeight: 700, fontSize: '.85rem', color: 'var(--brown-deep)' }}>👤 {dInfo.partner_name}</div>
+                                {dInfo.partner_phone && <div style={{ fontSize: '.75rem', color: 'var(--gold)', fontWeight: 600 }}>📞 {dInfo.partner_phone}</div>}
+                              </div>
+                              <div style={{ textAlign: 'right' }}>
+                                <button 
+                                  onClick={() => setTrackingOrder(d)}
+                                  style={{ ...S.btnPrimary, padding: '6px 12px', fontSize: '.7rem', borderRadius: 8, marginBottom: 8 }}
+                                >
+                                  📍 {isTa ? 'வரைபடத்தில் காண்க' : 'Track on Map'}
+                                </button>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'flex-end' }}>
+                                  <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--green)', animation: 'pulse 1.5s infinite' }}></div>
+                                  <span style={{ fontSize: '.75rem', fontWeight: 700, color: 'var(--green)' }}>{isTa ? 'நேரலை' : 'Live'}</span>
+                                </div>
+                              </div>
+                            </div>
+                          )}
                       </div>
                     );
                   })
@@ -1539,6 +1859,53 @@ export default function ShopkeeperDashboard() {
                     {isTa ? 'தற்போது டெலிவரிகள் எதுவும் இல்லை.' : 'No active deliveries at the moment.'}
                   </div>
                 )}
+              </div>
+
+              {/* ── DELIVERY HISTORY ── */}
+              <div style={S.panel}>
+                <div style={S.panelTitle}>📜 {isTa ? 'கடந்த கால டெலிவரிகள்' : 'Delivery History'}</div>
+                {dbOrders.filter(o => o.status === 'delivered').length > 0 ? (
+                  dbOrders.filter(o => o.status === 'delivered').map(d => {
+                    const dInfo = d.delivery_info;
+                    return (
+                      <div key={d.id} style={{ background: 'var(--cream-dark)', border: '1px solid var(--parchment)', borderRadius: 10, padding: '14px 18px', marginBottom: 10, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <div>
+                          <div style={{ fontFamily: 'var(--font-d)', fontSize: '.85rem', fontWeight: 700 }}>#ORD-{d.id} → {d.customer_name}</div>
+                          <div style={{ fontSize: '.75rem', color: 'var(--brown-mid)' }}>{isTa ? 'டெலிவரி செய்யப்பட்டது' : 'Successfully Delivered'}</div>
+                        </div>
+                        {dInfo && (
+                          <div style={{ textAlign: 'right' }}>
+                            <div style={{ fontSize: '.7rem', color: 'var(--brown-mid)' }}>{isTa ? 'வழங்கியவர்' : 'Delivered By'}</div>
+                            <div style={{ fontWeight: 700, fontSize: '.8rem', color: 'var(--brown-deep)' }}>👤 {dInfo.partner_name}</div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })
+                ) : (
+                  <div style={{ textAlign: 'center', padding: '20px 0', color: 'var(--brown-mid)', fontSize: '.8rem' }}>
+                    {isTa ? 'டெலிவரி வரலாறு எதுவும் இல்லை' : 'No delivery history found'}
+                  </div>
+                )}
+              </div>
+
+              {/* ── ACCOUNT DETAILS ── */}
+              <div style={S.panel}>
+                <h3 style={S.panelTitle}>🔑 {isTa ? 'கணக்கு விவரங்கள்' : 'Account Information'}</h3>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 20 }}>
+                  <div>
+                    <div style={{ fontSize: '.7rem', color: 'var(--brown-mid)', textTransform: 'uppercase', marginBottom: 4 }}>{isTa ? 'பயனர் பெயர்' : 'Username'}</div>
+                    <div style={{ fontWeight: 700, color: 'var(--brown-deep)' }}>@{user?.username || 'user'}</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '.7rem', color: 'var(--brown-mid)', textTransform: 'uppercase', marginBottom: 4 }}>{isTa ? 'மின்னஞ்சல்' : 'Email Address'}</div>
+                    <div style={{ fontWeight: 700, color: 'var(--brown-deep)' }}>{user?.email || 'N/A'}</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '.7rem', color: 'var(--brown-mid)', textTransform: 'uppercase', marginBottom: 4 }}>{isTa ? 'பங்கு' : 'Account Type'}</div>
+                    <div style={{ fontWeight: 700, color: 'var(--gold)', textTransform: 'capitalize' }}>{user?.role || 'Shopkeeper'}</div>
+                  </div>
+                </div>
               </div>
             </div>
           )}
@@ -1614,7 +1981,15 @@ export default function ShopkeeperDashboard() {
                   </div>
                   <div style={{ gridColumn: '1 / -1' }}>
                     <label style={{ display: 'block', fontSize: '.7rem', letterSpacing: '.8px', textTransform: 'uppercase', color: 'var(--brown-mid)', marginBottom: 4 }}>{isTa ? 'கடை முகவரி' : 'Store Address'}</label>
-                    <textarea style={{ ...S.formInput, height: 80, resize: 'none' }} disabled={!isEditingProfile} value={storeEdit.location} onChange={e => setStoreEdit({...storeEdit, location: e.target.value})}/>
+                    <textarea style={{ ...S.formInput, height: 80, resize: 'none' }} disabled={!isEditingProfile} value={storeEdit.address} onChange={e => setStoreEdit({...storeEdit, address: e.target.value})}/>
+                  </div>
+                  <div style={{ gridColumn: '1 / -1' }}>
+                    <label style={{ display: 'block', fontSize: '.7rem', letterSpacing: '.8px', textTransform: 'uppercase', color: 'var(--brown-mid)', marginBottom: 4 }}>{isTa ? 'இருப்பிடம்' : 'Location'}</label>
+                    <input style={S.formInput} disabled={!isEditingProfile} value={storeEdit.location} onChange={e => setStoreEdit({...storeEdit, location: e.target.value})}/>
+                  </div>
+                  <div style={{ gridColumn: '1 / -1' }}>
+                    <label style={{ display: 'block', fontSize: '.7rem', letterSpacing: '.8px', textTransform: 'uppercase', color: 'var(--brown-mid)', marginBottom: 4 }}>{isTa ? 'கடை பற்றிய விளக்கம்' : 'Store Description'}</label>
+                    <textarea style={{ ...S.formInput, height: 80, resize: 'none' }} disabled={!isEditingProfile} value={storeEdit.description} onChange={e => setStoreEdit({...storeEdit, description: e.target.value})}/>
                   </div>
                 </div>
 
@@ -1738,6 +2113,69 @@ export default function ShopkeeperDashboard() {
           showToast={showToast}
         />
       )}
+      {/* Tracking Modal */}
+      {trackingOrder && (
+        <div onClick={() => setTrackingOrder(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', zIndex: 10000, display: 'grid', placeItems: 'center', padding: 20 }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: 'var(--cream)', width: '100%', maxWidth: 800, borderRadius: 16, overflow: 'hidden', border: '2px solid var(--gold)', boxShadow: '0 20px 50px rgba(0,0,0,0.3)' }}>
+            <div style={{ padding: '16px 20px', borderBottom: '1.5px solid var(--parchment)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--brown-deep)' }}>
+              <div style={{ color: 'var(--gold-light)' }}>
+                <div style={{ fontSize: '.7rem', opacity: 0.8, textTransform: 'uppercase', letterSpacing: 1 }}>{isTa ? 'நேரலை கண்காணிப்பு' : 'Live Tracking'}</div>
+                <div style={{ fontSize: '1.1rem', fontWeight: 900 }}>#ORD-{trackingOrder.id} · {trackingOrder.customer_name}</div>
+              </div>
+              <button onClick={() => setTrackingOrder(null)} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: '#fff', padding: 8, borderRadius: '50%', cursor: 'pointer' }}><X size={20}/></button>
+            </div>
+            
+            {/* Status Flow */}
+            <div style={{ background: 'var(--cream-dark)', padding: '15px 20px', borderBottom: '1px solid var(--parchment)', display: 'flex', justifyContent: 'space-between' }}>
+              {['ready', 'assigned', 'picked_up', 'out_for_delivery', 'delivered'].map((s, i, arr) => {
+                const currentIdx = arr.indexOf(trackingOrder.status);
+                const active = i <= currentIdx;
+                const labels = {
+                  ready: isTa ? 'தயார்' : 'Ready',
+                  assigned: isTa ? 'ஒதுக்கப்பட்டது' : 'Assigned',
+                  picked_up: isTa ? 'எடுக்கப்பட்டது' : 'Picked Up',
+                  out_for_delivery: isTa ? 'வருகிறது' : 'On Way',
+                  delivered: isTa ? 'சேர்ந்தது' : 'Done'
+                };
+                return (
+                  <div key={s} style={{ flex: 1, textAlign: 'center', position: 'relative' }}>
+                    <div style={{ width: 24, height: 24, borderRadius: '50%', background: active ? 'var(--gold)' : 'var(--parchment)', margin: '0 auto 5px', border: '2px solid #fff', display: 'grid', placeItems: 'center', fontSize: '12px', fontWeight: 900, color: active ? 'var(--brown-deep)' : 'var(--brown-mid)', zIndex: 2, position: 'relative' }}>{i + 1}</div>
+                    <div style={{ fontSize: '10px', fontWeight: 800, color: active ? 'var(--brown-deep)' : 'var(--brown-mid)', textTransform: 'uppercase' }}>{labels[s]}</div>
+                    {i < arr.length - 1 && (
+                      <div style={{ position: 'absolute', top: 12, left: '50%', width: '100%', height: 2, background: i < currentIdx ? 'var(--gold)' : 'var(--parchment)', zIndex: 1 }} />
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            <div style={{ height: 400, position: 'relative' }}>
+              <DeliveryMap 
+                pickupCoords={storeData?.latitude ? { lat: Number(storeData.latitude), lng: Number(storeData.longitude) } : null}
+                deliveryCoords={trackingOrder.customer_lat ? { lat: Number(trackingOrder.customer_lat), lng: Number(trackingOrder.customer_lng) } : null}
+                currentCoords={trackingOrder.delivery_info?.lat ? { lat: Number(trackingOrder.delivery_info.lat), lng: Number(trackingOrder.delivery_info.lng) } : null}
+              />
+            </div>
+            
+            <div style={{ padding: 20, background: 'var(--cream-dark)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div style={{ fontSize: '1.5rem' }}>🛵</div>
+                <div>
+                  <div style={{ fontSize: '.85rem', fontWeight: 800, color: 'var(--brown-deep)' }}>{trackingOrder.delivery_info?.partner_name}</div>
+                  <div style={{ fontSize: '.7rem', color: 'var(--green)', fontWeight: 700 }}>{isTa ? 'நகர்ந்து கொண்டிருக்கிறார்...' : 'Partner is on the way...'}</div>
+                </div>
+              </div>
+              <button 
+                onClick={() => window.open(`tel:${trackingOrder.delivery_info?.partner_phone}`)}
+                style={{ ...S.btnPrimary, background: 'var(--green)', color: '#fff', border: 'none' }}
+              >
+                📞 {isTa ? 'அழைக்கவும்' : 'Call Partner'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <Toast msg={toast.msg} visible={toast.visible}/>
 
       {/* BOTTOM NAV (Mobile) */}
@@ -1754,11 +2192,87 @@ export default function ShopkeeperDashboard() {
           </button>
         ))}
       </nav>
+
+      {/* DETAIL MODAL (SHARED LOGIC) */}
+      {selectedProduct && (
+        <div 
+          style={{ position: 'fixed', inset: 0, background: 'rgba(43,21,5,0.7)', backdropFilter: 'blur(8px)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
+          onClick={() => setSelectedProduct(null)}
+        >
+          <div 
+            style={{ background: 'var(--cream)', width: '100%', maxWidth: 800, maxHeight: '90vh', borderRadius: 20, overflow: 'hidden', display: 'flex', flexDirection: window.innerWidth < 768 ? 'column' : 'row', position: 'relative', border: '1px solid var(--gold)', boxShadow: '0 20px 50px rgba(0,0,0,0.3)' }}
+            onClick={e => e.stopPropagation()}
+          >
+            <button 
+              onClick={() => setSelectedProduct(null)}
+              style={{ position: 'absolute', top: 15, right: 15, background: 'rgba(255,255,255,0.8)', border: 'none', borderRadius: '50%', width: 32, height: 32, cursor: 'pointer', zIndex: 10, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+            >
+              <X size={18} color="var(--brown-deep)" />
+            </button>
+
+            <div style={{ flex: 1, background: 'var(--cream-dark)', position: 'relative', overflow: 'hidden', height: window.innerWidth < 768 ? 300 : 'auto' }}>
+              {(selectedProduct.image_url || selectedProduct.image) ? (
+                <img src={selectedProduct.image_url || selectedProduct.image} alt={selectedProduct.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              ) : (
+                <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '5rem' }}>
+                  {selectedProduct.emoji || '📦'}
+                </div>
+              )}
+            </div>
+
+            <div style={{ flex: 1.2, padding: 30, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
+              <div style={{ fontSize: '.7rem', color: 'var(--gold)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>
+                {isTa ? (selectedProduct.category_name_ta || selectedProduct.category_name) : selectedProduct.category_name}
+              </div>
+              <h2 style={{ fontFamily: 'var(--font-d)', fontSize: '1.8rem', color: 'var(--brown-deep)', marginBottom: 10, margin: 0 }}>
+                {isTa ? (selectedProduct.name_ta || selectedProduct.name) : selectedProduct.name}
+              </h2>
+              
+              <div style={{ display: 'flex', alignItems: 'center', gap: 15, marginBottom: 20 }}>
+                <div style={{ fontSize: '1.6rem', color: 'var(--gold)', fontWeight: 900, fontFamily: 'var(--font-d)' }}>₹{selectedProduct.price?.toLocaleString()}</div>
+                <span style={{ fontSize: '.7rem', background: selectedProduct.stock < 5 ? 'var(--rust)' : 'var(--green)', color: '#fff', padding: '4px 10px', borderRadius: 20, fontWeight: 700 }}>
+                  {isTa ? `இருப்பு: ${selectedProduct.stock}` : `Stock: ${selectedProduct.stock}`}
+                </span>
+              </div>
+
+              <div style={{ background: 'var(--cream-dark)', padding: 15, borderRadius: 12, marginBottom: 25, border: '1px solid var(--parchment)' }}>
+                <p style={{ fontSize: '.85rem', color: 'var(--brown-mid)', lineHeight: 1.6, margin: 0 }}>
+                  {isTa ? (selectedProduct.description_ta || selectedProduct.description) : selectedProduct.description}
+                </p>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 15, marginBottom: 25 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  <span style={{ fontSize: '.6rem', color: 'var(--brown-light)', textTransform: 'uppercase', fontWeight: 700 }}>{isTa ? 'நிறம்' : 'Color'}</span>
+                  <span style={{ fontSize: '.85rem', color: 'var(--brown-deep)', fontWeight: 600 }}>{selectedProduct.color || (isTa ? 'வழக்கமான' : 'Standard')}</span>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  <span style={{ fontSize: '.6rem', color: 'var(--brown-light)', textTransform: 'uppercase', fontWeight: 700 }}>{isTa ? 'அளவு' : 'Size'}</span>
+                  <span style={{ fontSize: '.85rem', color: 'var(--brown-deep)', fontWeight: 600 }}>{selectedProduct.size || (isTa ? 'ஒரே அளவு' : 'One Size')}</span>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  <span style={{ fontSize: '.6rem', color: 'var(--brown-light)', textTransform: 'uppercase', fontWeight: 700 }}>{isTa ? 'பொருள்' : 'Material'}</span>
+                  <span style={{ fontSize: '.85rem', color: 'var(--brown-deep)', fontWeight: 600 }}>{selectedProduct.material || selectedProduct.fabric || (isTa ? 'தரமான' : 'Premium Quality')}</span>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', gap: 10, marginTop: 'auto' }}>
+                <button 
+                  onClick={() => { setSelectedProduct(null); setUploadMode('product'); setEditItem(selectedProduct); setShowUpload(true); }}
+                  style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, background: 'var(--brown-deep)', color: 'var(--gold-light)', border: 'none', padding: '14px', borderRadius: 12, fontSize: '.9rem', fontWeight: 800, cursor: 'pointer' }}
+                >
+                  ✏️ {isTa ? 'திருத்து' : 'Edit Product'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
-function ProductGrid({ products, onEdit, onDelete, onAdd }) {
+function ProductGrid({ products, onEdit, onDelete, onAdd, onSelect }) {
   const { i18n } = useTranslation();
   const isTa = i18n.language.startsWith('ta');
   return (
@@ -1767,14 +2281,16 @@ function ProductGrid({ products, onEdit, onDelete, onAdd }) {
         <div key={p.id} style={{ background: 'var(--cream)', border: '1.5px solid var(--parchment)', borderRadius: 8, overflow: 'hidden', boxShadow: '2px 3px 10px var(--shadow)', transition: '.25s' }}
           onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.boxShadow = '4px 8px 20px var(--shadow)'; }}
           onMouseLeave={e => { e.currentTarget.style.transform = ''; e.currentTarget.style.boxShadow = '2px 3px 10px var(--shadow)'; }}>
-          <div style={{ height: 160, background: 'var(--cream-dark)', display: 'flex', alignItems: 'center', justifyContent: 'center', borderBottom: '1px solid var(--parchment)', fontSize: '2.8rem', overflow: 'hidden' }}>
+          <div onClick={() => onSelect && onSelect(p)} style={{ height: 160, background: 'var(--cream-dark)', display: 'flex', alignItems: 'center', justifyContent: 'center', borderBottom: '1px solid var(--parchment)', fontSize: '2.8rem', overflow: 'hidden', cursor: 'pointer' }}>
             {p.image ? <img src={p.image} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={e => { e.target.style.display = 'none'; }}/> : (p.imgUrl ? <img src={p.imgUrl} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={e => { e.target.style.display = 'none'; }}/> : p.emoji || (p.category === 'Services' ? '✂️' : '📦'))}
           </div>
           <div style={{ padding: '10px 12px' }}>
-            <div style={{ fontFamily: 'var(--font-d)', fontSize: '.78rem', fontWeight: 700, color: 'var(--brown-deep)' }}>{isTa ? (p.name_ta || p.name) : p.name}</div>
-            <div style={{ fontSize: '.65rem', color: 'var(--brown-mid)', marginTop: 2, lineHeight: 1.4, height: '2.8em', overflow: 'hidden' }}>{isTa ? (p.description_ta || p.description || p.desc_ta || p.desc) : (p.description || p.desc)}</div>
-            <div style={{ fontSize: '.76rem', color: 'var(--gold)', marginTop: 3, fontWeight: 600 }}>₹{p.price?.toLocaleString()}</div>
-            <div style={{ fontSize: '.63rem', color: 'var(--brown-light)', marginTop: 3 }}>{isTa ? 'இருப்பு' : 'Stock'}: {p.stock} {p.size ? '· ' + p.size : ''}</div>
+            <div onClick={() => onSelect && onSelect(p)} style={{ cursor: 'pointer' }}>
+              <div style={{ fontFamily: 'var(--font-d)', fontSize: '.78rem', fontWeight: 700, color: 'var(--brown-deep)' }}>{isTa ? (p.name_ta || p.name) : p.name}</div>
+              <div style={{ fontSize: '.65rem', color: 'var(--brown-mid)', marginTop: 2, lineHeight: 1.4, height: '2.8em', overflow: 'hidden' }}>{isTa ? (p.description_ta || p.description || p.desc_ta || p.desc) : (p.description || p.desc)}</div>
+              <div style={{ fontSize: '.76rem', color: 'var(--gold)', marginTop: 3, fontWeight: 600 }}>₹{p.price?.toLocaleString()}</div>
+              <div style={{ fontSize: '.63rem', color: 'var(--brown-light)', marginTop: 3 }}>{isTa ? 'இருப்பு' : 'Stock'}: {p.stock} {p.size ? '· ' + p.size : ''}</div>
+            </div>
             <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
               <button onClick={() => onEdit(p)} style={{ flex: 1, padding: 5, border: '1.5px solid var(--gold)', borderRadius: 4, background: 'transparent', fontSize: '.62rem', fontFamily: 'var(--font-d)', color: 'var(--gold)', cursor: 'pointer' }}>{isTa ? '✏️ திருத்து' : '✏️ Edit'}</button>
               <button onClick={() => onDelete(p.id)} style={{ padding: '5px 8px', border: '1.5px solid var(--rust)', borderRadius: 4, background: 'transparent', fontSize: '.62rem', color: 'var(--rust)', cursor: 'pointer' }}>🗑</button>

@@ -3,9 +3,19 @@ from .models import Product, Category
 
 
 class CategorySerializer(serializers.ModelSerializer):
+    subcategories = serializers.SerializerMethodField()
+    parent_name = serializers.CharField(source='parent.name', read_only=True)
+
     class Meta:
         model = Category
-        fields = '__all__'
+        fields = ['id', 'name', 'name_ta', 'parent', 'parent_name', 'type', 'icon', 'subcategories']
+
+    def get_subcategories(self, obj):
+        # Only return subcategories if this is a top-level category
+        if obj.parent is None:
+            subs = obj.subcategories.all()
+            return CategorySerializer(subs, many=True).data
+        return []
 
 
 class ProductSerializer(serializers.ModelSerializer):

@@ -130,13 +130,23 @@ class UserViewSet(viewsets.ModelViewSet):
         return Response({'detail': 'Password reset successful!'}, status=status.HTTP_200_OK)
     @action(detail=False, methods=['get', 'patch'])
     def me(self, request):
-        if request.method == 'PATCH':
-            serializer = self.get_serializer(request.user, data=request.data, partial=True)
-            serializer.is_valid(raise_exception=True)
-            serializer.save()
+        try:
+            if not request.user.is_authenticated:
+                return Response({'error': 'Not authenticated'}, status=401)
+                
+            if request.method == 'PATCH':
+                serializer = self.get_serializer(request.user, data=request.data, partial=True)
+                serializer.is_valid(raise_exception=True)
+                serializer.save()
+                return Response(serializer.data)
+                
+            serializer = self.get_serializer(request.user)
             return Response(serializer.data)
-        serializer = self.get_serializer(request.user)
-        return Response(serializer.data)
+        except Exception as e:
+            import traceback
+            print(f"CRITICAL ERROR in users/me: {str(e)}")
+            print(traceback.format_exc())
+            return Response({'error': 'Internal server error processing profile'}, status=500)
 
     @action(detail=False, methods=['delete'], url_path='delete-account')
     def delete_account(self, request):

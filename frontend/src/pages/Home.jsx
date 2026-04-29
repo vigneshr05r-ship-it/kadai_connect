@@ -1,263 +1,254 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useCart } from '../context/CartContext';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { 
-  Sparkles, Star, MapPin, ArrowLeft, ShoppingCart, Heart
+  Sparkles, Star, MapPin, ArrowLeft, ShoppingCart, Heart, ChevronRight
 } from 'lucide-react';
-import ProductGrid from '../components/ProductGrid';
+import ItemGrid from '../components/ItemGrid';
 import OrderTracker from '../components/OrderTracker';
 import MainLayout from '../components/MainLayout';
-import { STORES, MOCK_PRODUCTS, MOCK_SERVICES } from '../data/mockData';
+import BookingModal from '../components/BookingModal';
 
-const S = {
-  sectionTitle: { fontFamily: 'var(--font-d)', fontSize: '1.1rem', fontWeight: 700, color: 'var(--brown-deep)' },
-};
-
-function Toast({ msg, visible }) {
-  return (
-    <div style={{ position: 'fixed', bottom: 80, left: '50%', transform: `translateX(-50%) translateY(${visible ? 0 : 20}px)`, background: 'var(--brown-deep)', color: 'var(--gold-light)', padding: '10px 22px', borderRadius: 24, fontSize: '.8rem', border: '1px solid var(--gold)', opacity: visible ? 1 : 0, transition: '.3s', pointerEvents: 'none', zIndex: 600, whiteSpace: 'nowrap' }}>
-      {msg}
-    </div>
-  );
-}
 
 export default function Home() {
   const { user, apiFetch } = useAuth();
+  const { addToCart } = useCart();
   const navigate = useNavigate();
   const location = useLocation();
   const { t, i18n } = useTranslation();
   const isTa = i18n.language.startsWith('ta');
 
-  const [activeSubTab, setActiveSubTab] = useState(location.state?.activeSubTab || 'all');
-  const [categoryFilter, setCategoryFilter] = useState(location.state?.categoryFilter || 'all');
+  const [activeSubTab, setActiveSubTab] = useState('all');
+  const [categoryFilter, setCategoryFilter] = useState('all');
   const [portalType, setPortalType] = useState('all');
+  const [search, setSearch] = useState('');
   
   const [dbProducts, setDbProducts] = useState([]);
   const [dbServices, setDbServices] = useState([]);
-  const [dbStores, setDbStores] = useState(STORES);
+  const [dbStores, setDbStores] = useState([]);
+  const [categories, setCategories] = useState([]);
   const [myOrders, setMyOrders] = useState([]);
-  const [toast, setToast] = useState({ msg: '', visible: false });
-  const [search, setSearch] = useState('');
+  const [bookingService, setBookingService] = useState(null);
 
-  const showToast = (msg) => { setToast({ msg, visible: true }); setTimeout(() => setToast(t => ({ ...t, visible: false })), 3000); };
-
+  // Fetch all data
   useEffect(() => {
-    const fetchData = async () => {
+    const loadData = async () => {
       try {
-        const [pResp, sResp, oResp] = await Promise.all([
+        const [pResp, sResp, stResp, oResp, cResp] = await Promise.all([
           apiFetch('/api/products/'),
           apiFetch('/api/services/'),
-          apiFetch('/api/orders/')
+          apiFetch('/api/stores/'),
+          apiFetch('/api/orders/'),
+          apiFetch('/api/products/categories/?top_level=true')
         ]);
 
         if (pResp?.ok) {
           const d = await pResp.json();
-          const real = Array.isArray(d) ? d : (d.results || []);
-          setDbProducts(real.length > 0 ? [...real, ...MOCK_PRODUCTS.slice(0, 4)] : MOCK_PRODUCTS);
-        } else setDbProducts(MOCK_PRODUCTS);
+          const items = Array.isArray(d) ? d : (d.results || []);
+          if (items.length > 0) setDbProducts(items);
+        }
 
         if (sResp?.ok) {
           const d = await sResp.json();
-          const real = Array.isArray(d) ? d : (d.results || []);
-          setDbServices(real.length > 0 ? [...real, ...MOCK_SERVICES.slice(0, 4)] : MOCK_SERVICES);
-        } else setDbServices(MOCK_SERVICES);
+          const items = Array.isArray(d) ? d : (d.results || []);
+          if (items.length > 0) setDbServices(items);
+        }
+
+        if (stResp?.ok) {
+          const d = await stResp.json();
+          const items = Array.isArray(d) ? d : (d.results || []);
+          if (items.length > 0) setDbStores(items);
+        }
 
         if (oResp?.ok) {
           const d = await oResp.json();
-          const raw = Array.isArray(d) ? d : (d.results || []);
-          const mapped = raw.map(o => ({
-            ...o,
-            id: `#ORD-${o.id}`,
-            name: o.items?.[0]?.product_name || (isTa ? 'ஆர்டர்' : 'Order'),
-            items_str: o.items?.map(i => i.product_name).join(', ') || ''
-          }));
-          setMyOrders(mapped);
+          setMyOrders(Array.isArray(d) ? d : (d.results || []));
         }
-      } catch (e) {
-        setDbProducts(MOCK_PRODUCTS);
-        setDbServices(MOCK_SERVICES);
+
+        if (cResp?.ok) {
+          setCategories(await cResp.json());
+        }
+      } catch (err) {
+        console.error("Home load error:", err);
       }
     };
-    if (user) fetchData();
-  }, [user, apiFetch]);
+    loadData();
+  }, [apiFetch]);
 
-  useEffect(() => {
-    if (location.state?.activeSubTab) setActiveSubTab(location.state.activeSubTab);
-    if (location.state?.categoryFilter) setCategoryFilter(location.state.categoryFilter);
-  }, [location.state]);
+  // Filter Logic
+  const filteredProducts = useMemo(() => {
+    return dbProducts.filter(p => {
+      const matchesCat = categoryFilter === 'all' || p.category === categoryFilter || p.category_name === categoryFilter;
+      const matchesSearch = !search || p.name.toLowerCase().includes(search.toLowerCase()) || p.name_ta?.includes(search);
+      return matchesCat && matchesSearch;
+    });
+  }, [dbProducts, categoryFilter, search]);
 
-  const cart = JSON.parse(localStorage.getItem('kc_cart') || '[]');
-  const wishlist = JSON.parse(localStorage.getItem('kc_wishlist') || '[]');
-
-  const addToCart = (p) => {
-    const newCart = [...cart, { ...p, cartId: Math.random().toString(36).substr(2, 9) }];
-    localStorage.setItem('kc_cart', JSON.stringify(newCart));
-    showToast(isTa ? 'கார்ட்டில் சேர்க்கப்பட்டது!' : 'Added to cart!');
-    window.dispatchEvent(new Event('storage'));
-  };
-
-  const toggleWishlist = (p) => {
-    const exists = wishlist.find(w => w.id === p.id);
-    const newWish = exists ? wishlist.filter(w => w.id !== p.id) : [...wishlist, p];
-    localStorage.setItem('kc_wishlist', JSON.stringify(newWish));
-    showToast(exists ? (isTa ? 'நீக்கப்பட்டது' : 'Removed') : (isTa ? 'சேர்க்கப்பட்டது' : 'Added'));
-    window.dispatchEvent(new Event('storage'));
-  };
-
-  const filteredProducts = dbProducts.filter(p => {
-    if (categoryFilter !== 'all' && p.category !== categoryFilter && p.category_name !== categoryFilter) return false;
-    if (search && !p.name.toLowerCase().includes(search.toLowerCase()) && !p.name_ta?.includes(search)) return false;
-    return true;
-  });
-
-  const filteredServices = dbServices.filter(s => {
-    if (categoryFilter !== 'all' && s.category !== categoryFilter && s.category_name !== categoryFilter) return false;
-    if (search && !s.name.toLowerCase().includes(search.toLowerCase()) && !s.name_ta?.includes(search)) return false;
-    return true;
-  });
+  const filteredServices = useMemo(() => {
+    return dbServices.filter(s => {
+      const matchesCat = categoryFilter === 'all' || s.category === categoryFilter || s.category_name === categoryFilter;
+      const matchesSearch = !search || s.name.toLowerCase().includes(search.toLowerCase()) || s.name_ta?.includes(search);
+      return matchesCat && matchesSearch;
+    });
+  }, [dbServices, categoryFilter, search]);
 
   return (
     <MainLayout onSearch={setSearch}>
-      <Toast msg={toast.msg} visible={toast.visible} />
-      
-      {activeSubTab === 'all' && !search && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 30 }}>
-          <div style={{ width: 45, height: 45, background: 'var(--gold)', borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--brown-deep)', boxShadow: '0 4px 12px rgba(201,146,26,0.2)' }}>
-              <Sparkles size={24} />
-          </div>
-          <div>
-            <h1 style={{ fontFamily: 'var(--font-d)', fontSize: '1.5rem', fontWeight: 900, color: 'var(--brown-deep)', margin: 0 }}>
-              {isTa ? 'வணக்கம்,' : 'Welcome back,'} <span style={{ color: 'var(--gold)' }}>{user?.first_name || user?.username || 'Shopper'}</span>
-            </h1>
-            <p style={{ fontSize: '.85rem', color: 'var(--brown-mid)', margin: 0 }}>{isTa ? 'புதிய வரவுகள் மற்றும் உள்ளூர் விருப்பங்களை ஆராயுங்கள்.' : 'Explore fresh arrivals and local favorites.'}</p>
-          </div>
+      {/* Header Info */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 30, background: 'var(--cream-dark)', padding: '16px 20px', borderRadius: 20, border: '1px solid var(--parchment)', boxShadow: '0 4px 15px rgba(59,31,14,0.05)' }}>
+        <div style={{ width: 52, height: 52, background: 'var(--brown-deep)', borderRadius: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--gold)', border: '1.5px solid var(--gold)' }}>
+          <Sparkles size={28} />
         </div>
-      )}
+        <div>
+          <h1 style={{ fontSize: '1.4rem', fontWeight: 900, color: 'var(--brown-deep)', margin: 0 }}>
+            {isTa ? 'வணக்கம்,' : 'Welcome,'} <span style={{ color: 'var(--gold)' }}>{user?.name || user?.username || user?.first_name || 'User'}</span>
+          </h1>
+          <p style={{ fontSize: '.8rem', color: 'var(--brown-mid)', margin: 0, fontWeight: 600 }}>Explore fresh arrivals today</p>
+        </div>
+      </div>
 
-      {activeSubTab !== 'all' && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 24 }}>
-          <button onClick={() => { setActiveSubTab('all'); setCategoryFilter('all'); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--brown-deep)', display: 'flex' }}>
-            <ArrowLeft size={22} />
+      {/* Tabs */}
+      <div style={{ display: 'flex', background: 'var(--parchment)', padding: 5, borderRadius: 18, marginBottom: 28, border: '1px solid rgba(59,31,14,0.1)' }}>
+        {['all', 'products', 'services'].map(tab => (
+          <button 
+            key={tab} 
+            onClick={() => { setPortalType(tab); setCategoryFilter('all'); }}
+            style={{ 
+              flex: 1, 
+              padding: '12px', 
+              borderRadius: 14, 
+              border: 'none', 
+              background: portalType === tab ? 'var(--brown-deep)' : 'transparent', 
+              color: portalType === tab ? 'var(--gold-light)' : 'var(--brown-mid)', 
+              fontWeight: 800, 
+              fontSize: '.85rem', 
+              cursor: 'pointer', 
+              transition: '.3s cubic-bezier(0.4, 0, 0.2, 1)'
+            }}
+          >
+            {tab.toUpperCase()}
           </button>
-          <div style={{ fontFamily: 'var(--font-d)', fontSize: '1.15rem', fontWeight: 800, color: 'var(--brown-deep)' }}>
-            {activeSubTab === 'stores' && (isTa ? '🏪 கடைகள்' : '🏪 Stores Near You')}
-            {activeSubTab === 'products' && (isTa ? '🛍️ தயாரிப்புகள்' : '🛍️ All Products')}
-            {activeSubTab === 'services' && (isTa ? '🧵 சேவைகள்' : '🧵 Services')}
-          </div>
-        </div>
-      )}
+        ))}
+      </div>
 
-      {activeSubTab === 'all' && (
-        <>
-          {myOrders.find(o => !['delivered', 'cancelled'].includes(o.status)) && (
+      {/* Main Content Area */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 40 }}>
+        
+        {/* Active Order Tracker */}
+        {myOrders.find(o => !['delivered', 'cancelled'].includes(o.status)) && (
+          <div style={{ background: 'var(--cream-dark)', borderRadius: 24, padding: 4, border: '1.5px solid var(--gold)' }}>
             <OrderTracker order={myOrders.find(o => !['delivered', 'cancelled'].includes(o.status))} />
-          )}
-
-          {/* Portal Type Switcher */}
-          <div style={{ display: 'flex', gap: 10, marginBottom: 26, background: 'var(--cream-dark)', padding: 6, borderRadius: 30, maxWidth: 400, border: '1.5px solid var(--parchment)' }}>
-            {[
-              { key: 'all', label: isTa ? 'அனைத்தும்' : 'All', icon: '✨' },
-              { key: 'products', label: isTa ? 'தயாரிப்புகள்' : 'Products', icon: '🛍️' },
-              { key: 'services', label: isTa ? 'சேவைகள்' : 'Services', icon: '🧵' }
-            ].map(p => (
-              <button key={p.key} onClick={() => setPortalType(p.key)} style={{ flex: 1, padding: '10px 14px', borderRadius: 24, border: 'none', background: portalType === p.key ? 'var(--brown-deep)' : 'transparent', color: portalType === p.key ? 'var(--gold-light)' : 'var(--brown-mid)', fontWeight: 800, cursor: 'pointer', transition: '.3s', fontSize: '.75rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-                <span>{p.icon}</span> {p.label}
-              </button>
-            ))}
           </div>
+        )}
 
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-            <div style={S.sectionTitle}>🏪 <span style={{ color: 'var(--gold)' }}>{isTa ? 'அருகிலுள்ள கடைகள்' : 'Stores Near You'}</span></div>
-            <button onClick={() => setActiveSubTab('stores')} style={{ fontSize: '.76rem', color: 'var(--gold)', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 700 }}>{t('view_all')} →</button>
-          </div>
-
-          <div className="horizontal-scroll">
-            {dbStores.map((s) => (
-              <div key={s.id} onClick={() => navigate(`/store/${s.id}`)} style={{ flexShrink: 0, width: 160, background: '#fff', border: '1.5px solid var(--parchment)', borderRadius: 16, overflow: 'hidden', cursor: 'pointer', transition: '.2s' }}>
-                <div style={{ height: 70, background: `url(${s.banner_url || 'https://images.unsplash.com/photo-1534723452862-4c874e70d6f2?w=200'}) center/cover` }} />
-                <div style={{ padding: 12, textAlign: 'center' }}>
-                  <div style={{ fontWeight: 800, fontSize: '.8rem', color: 'var(--brown-deep)' }}>{isTa ? (s.name_ta || s.name) : s.name}</div>
-                  <div style={{ fontSize: '.6rem', color: 'var(--gold)', marginTop: 4 }}>⭐ {s.rating || '5.0'} • {s.dist || '0.5'} km</div>
+        {/* Categories Grid */}
+        {portalType === 'all' && (
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+              <h2 style={{ fontSize: '1.25rem', fontWeight: 900, color: 'var(--brown-deep)' }}>Top Categories</h2>
+              <button onClick={() => navigate('/categories')} style={{ fontSize: '.8rem', color: 'var(--gold)', fontWeight: 800, background: 'none', border: 'none', cursor: 'pointer' }}>View All</button>
+            </div>
+            <div className="responsive-home-categories-grid">
+              {(categories.length > 0 ? categories : [
+                { name: 'Grocery', icon: '🛒', color: 'var(--green)' },
+                { name: 'Clothing', icon: '👗', color: 'var(--rust)' },
+                { name: 'Electronics', icon: '💻', color: 'var(--brown-deep)' },
+                { name: 'Jewellery', icon: '💎', color: 'var(--gold)' }
+              ]).slice(0, 4).map(c => (
+                <div key={c.id || c.name} onClick={() => { setPortalType(c.type === 'service' ? 'services' : 'products'); setCategoryFilter(c.name); }} style={{ background: '#fff', padding: '20px 10px', borderRadius: 20, textAlign: 'center', border: '1.5px solid var(--parchment)', cursor: 'pointer', transition: '.2s', boxShadow: '0 4px 10px rgba(59,31,14,0.03)' }}>
+                   <div style={{ fontSize: '1.8rem', marginBottom: 6 }}>{c.icon || '📦'}</div>
+                   <div style={{ fontSize: '.75rem', fontWeight: 800, color: 'var(--brown-mid)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{isTa ? (c.name_ta || c.name) : c.name}</div>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
-        </>
-      )}
+        )}
 
-      {(activeSubTab === 'all' || activeSubTab === 'products') && (portalType === 'all' || portalType === 'products') && (
-        <div style={{ marginBottom: 32 }}>
-          {activeSubTab === 'all' && (
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-              <div style={S.sectionTitle}>🛍️ <span style={{ color: 'var(--gold)' }}>{isTa ? 'தயாரிப்புகள்' : 'Products'}</span></div>
-              <button onClick={() => setActiveSubTab('products')} style={{ fontSize: '.76rem', color: 'var(--gold)', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 700 }}>{t('view_all')} →</button>
+        {/* Stores Carousel */}
+        {portalType === 'all' && (
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+              <h2 style={{ fontSize: '1.25rem', fontWeight: 900, color: 'var(--brown-deep)' }}>Stores Near You</h2>
+              <button onClick={() => navigate('/shops')} style={{ fontSize: '.8rem', color: 'var(--gold)', fontWeight: 800, background: 'none', border: 'none', cursor: 'pointer' }}>View All</button>
             </div>
-          )}
-          <ProductGrid products={filteredProducts.slice(0, activeSubTab === 'all' ? 8 : 100)} cart={cart} wishlist={wishlist} onAddToCart={addToCart} onToggleWishlist={toggleWishlist} />
-        </div>
-      )}
-
-      {(activeSubTab === 'all' || activeSubTab === 'services') && (portalType === 'all' || portalType === 'services') && (
-        <div style={{ marginBottom: 32 }}>
-          {activeSubTab === 'all' && (
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-              <div style={S.sectionTitle}>🧵 <span style={{ color: 'var(--gold)' }}>{isTa ? 'சேவைகள்' : 'Services'}</span></div>
-              <button onClick={() => setActiveSubTab('services')} style={{ fontSize: '.76rem', color: 'var(--gold)', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 700 }}>{t('view_all')} →</button>
+            <div style={{ display: 'flex', gap: 18, overflowX: 'auto', paddingBottom: 12, scrollbarWidth: 'none' }}>
+              {dbStores.map(s => (
+                <div key={s.id} onClick={() => navigate(`/store/${s.id}`)} style={{ flexShrink: 0, width: 160, background: '#fff', borderRadius: 24, border: '1.5px solid var(--parchment)', overflow: 'hidden', cursor: 'pointer', transition: '.3s', boxShadow: '0 6px 15px rgba(59,31,14,0.06)' }}>
+                  <div style={{ height: 100, background: `url(${s.banner_url || 'https://images.unsplash.com/photo-1534723452862-4c874e70d6f2?w=200'}) center/cover` }} />
+                  <div style={{ padding: 14, textAlign: 'center' }}>
+                    <div style={{ fontSize: '.85rem', fontWeight: 800, color: 'var(--brown-deep)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{s.name}</div>
+                    <div style={{ fontSize: '.75rem', color: 'var(--gold)', fontWeight: 800, marginTop: 6, background: 'var(--cream)', display: 'inline-block', padding: '2px 8px', borderRadius: 8 }}>⭐ {s.rating || '5.0'}</div>
+                  </div>
+                </div>
+              ))}
             </div>
-          )}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 14 }}>
-            {filteredServices.slice(0, activeSubTab === 'all' ? 4 : 100).map((ser, i) => (
-              <div key={ser.id || i} style={{ background: '#fff', border: '1.5px solid var(--parchment)', borderRadius: 12, padding: 14, cursor: 'pointer' }}>
-                <div style={{ height: 100, background: 'var(--gold-pale)', borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2rem', marginBottom: 10 }}>{ser.emoji || '✂️'}</div>
-                <div style={{ fontWeight: 800, fontSize: '.85rem', color: 'var(--brown-deep)' }}>{isTa ? (ser.name_ta || ser.name) : ser.name}</div>
-                <div style={{ fontSize: '.9rem', color: 'var(--gold)', fontWeight: 800, marginTop: 6 }}>₹{ser.price}</div>
-                <button style={{ width: '100%', marginTop: 10, padding: 8, background: 'var(--brown-deep)', color: 'var(--gold)', border: 'none', borderRadius: 6, fontSize: '.7rem', fontWeight: 800 }}>{isTa ? 'முன்பதிவு' : 'Book Now'}</button>
-              </div>
-            ))}
           </div>
-        </div>
-      )}
-      {activeSubTab === 'stores' && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 16 }}>
-          {dbStores.map((s) => (
-            <div key={s.id} onClick={() => navigate(`/store/${s.id}`)} style={{ background: '#fff', border: '1.5px solid var(--parchment)', borderRadius: 16, overflow: 'hidden', cursor: 'pointer', transition: '.2s' }}>
-              <div style={{ height: 100, background: `url(${s.banner_url || 'https://images.unsplash.com/photo-1534723452862-4c874e70d6f2?w=400'}) center/cover` }} />
-              <div style={{ padding: 16, textAlign: 'center' }}>
-                <div style={{ fontWeight: 800, fontSize: '.9rem', color: 'var(--brown-deep)' }}>{isTa ? (s.name_ta || s.name) : s.name}</div>
-                <div style={{ fontSize: '.7rem', color: 'var(--brown-mid)', margin: '4px 0' }}>{s.category}</div>
-                <div style={{ fontSize: '.7rem', color: 'var(--gold)', fontWeight: 800 }}>⭐ {s.rating || '5.0'} • {s.dist || '0.5'} km</div>
-                <button style={{ width: '100%', marginTop: 12, padding: '8px', background: 'var(--brown-deep)', color: 'var(--gold-light)', border: 'none', borderRadius: 8, fontSize: '.75rem', fontWeight: 800 }}>
-                  {isTa ? 'கடையை பார்வையிடு' : 'Visit Store'}
-                </button>
-              </div>
+        )}
+
+        {/* Products Section */}
+        {(portalType === 'all' || portalType === 'products') && (
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+              <h2 style={{ fontSize: '1.25rem', fontWeight: 900, color: 'var(--brown-deep)' }}>
+                {categoryFilter !== 'all' ? `${categoryFilter} Products` : 'Featured Products'}
+              </h2>
+              {portalType === 'all' && <button onClick={() => setPortalType('products')} style={{ fontSize: '.8rem', color: 'var(--gold)', fontWeight: 800, background: 'none', border: 'none', cursor: 'pointer' }}>View All</button>}
             </div>
-          ))}
-        </div>
+            <ItemGrid 
+              items={filteredProducts.slice(0, portalType === 'all' ? 8 : 100)} 
+              type="product"
+            />
+          </div>
+        )}
+
+        {/* Services Section */}
+        {(portalType === 'all' || portalType === 'services') && (
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+              <h2 style={{ fontSize: '1.25rem', fontWeight: 900, color: 'var(--brown-deep)' }}>Professional Services</h2>
+              {portalType === 'all' && <button onClick={() => setPortalType('services')} style={{ fontSize: '.8rem', color: 'var(--gold)', fontWeight: 800, background: 'none', border: 'none', cursor: 'pointer' }}>View All</button>}
+            </div>
+            <ItemGrid 
+              items={filteredServices.slice(0, portalType === 'all' ? 4 : 100)} 
+              type="service"
+              onSelect={setBookingService}
+            />
+          </div>
+        )}
+      </div>
+
+      {bookingService && (
+        <BookingModal 
+          service={bookingService}
+          store={dbStores.find(s => s.id === bookingService.store_id) || dbStores[0]}
+          onClose={() => setBookingService(null)}
+          apiFetch={apiFetch}
+          isTa={isTa}
+        />
       )}
 
       <style>{`
-        .horizontal-scroll {
-          display: flex;
-          gap: 14px;
-          overflow-x: auto;
-          padding-bottom: 10px;
-          margin-bottom: 28px;
-          scrollbar-width: thin;
-          scrollbar-color: var(--gold) transparent;
+        .responsive-home-categories-grid {
+          display: grid;
+          grid-template-columns: repeat(4, 1fr);
+          gap: 16px;
         }
-        .horizontal-scroll::-webkit-scrollbar {
-          height: 4px;
+        .responsive-home-services-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+          gap: 20px;
         }
-        .horizontal-scroll::-webkit-scrollbar-track {
-          background: transparent;
-        }
-        .horizontal-scroll::-webkit-scrollbar-thumb {
-          background-color: var(--gold);
-          border-radius: 10px;
+        @media (max-width: 600px) {
+          .responsive-home-categories-grid {
+            grid-template-columns: repeat(2, 1fr);
+          }
+          .responsive-home-services-grid {
+            grid-template-columns: 1fr;
+          }
         }
       `}</style>
     </MainLayout>
   );
 }
-

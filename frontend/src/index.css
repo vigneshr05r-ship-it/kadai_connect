@@ -13,14 +13,15 @@
   --brown-mid: #8b5e3c;
   --brown-light: #b07d54;
   --gold: #c9921a;
+  --gold-deep: #b47d12;
   --gold-light: #e8b84b;
   --gold-pale: #f5d98b;
   --rust: #a63d2f;
   --green: #2d6a4f;
   --green-light: #52b788;
   --shadow: rgba(59, 31, 14, 0.18);
-  --font-d: 'Playfair Display', serif;
-  --font-b: 'Crimson Pro', serif;
+  --font-d: 'Inter', system-ui, sans-serif;
+  --font-b: 'Inter', system-ui, sans-serif;
   --font-t: 'Noto Serif Tamil', serif;
   --sb-w: 260px;
 }
@@ -33,8 +34,8 @@ html, body {
   padding: 0;
   background: var(--cream);
   color: var(--brown-deep);
-  font-family: var(--font-b);
-  font-size: 17px;
+  font-family: 'Inter', sans-serif;
+  font-size: 15px;
   min-height: 100vh;
   width: 100%;
 }
@@ -290,8 +291,123 @@ body::after {
   from { transform: translateX(100%); }
   to   { transform: translateX(0); }
 }
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.9); }
+}
+
+/* VINTAGE UTILITIES */
+.vintage-card {
+  background: #fff;
+  border: 2px solid var(--parchment);
+  border-radius: 24px;
+  box-shadow: 0 4px 15px rgba(59,31,14,0.03);
+  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+.vintage-card:hover {
+  border-color: var(--gold);
+  transform: translateY(-5px);
+  box-shadow: 0 10px 30px rgba(59,31,14,0.08);
+}
+
+.vintage-btn-primary {
+  background: var(--brown-deep);
+  color: var(--gold-light);
+  border: 2px solid var(--gold);
+  border-radius: 16px;
+  font-family: var(--font-d);
+  font-weight: 900;
+  font-style: italic;
+  padding: 12px 24px;
+  cursor: pointer;
+  transition: all 0.3s;
+  box-shadow: 0 8px 16px rgba(59,31,14,0.2);
+}
+.vintage-btn-primary:hover {
+  background: var(--brown-mid);
+  transform: translateY(-2px);
+  box-shadow: 0 12px 24px rgba(59,31,14,0.3);
+}
+.vintage-btn-primary:active {
+  transform: translateY(0);
+}
+
+.vintage-input {
+  width: 100%;
+  padding: 14px 18px;
+  background: #fff;
+  border: 2.5px solid var(--parchment);
+  border-radius: 18px;
+  font-family: var(--font-b);
+  font-size: 1rem;
+  color: var(--brown-deep);
+  outline: none;
+  transition: all 0.3s;
+  box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);
+}
+.vintage-input:focus {
+  border-color: var(--gold);
+  background: var(--cream-dark);
+  box-shadow: 0 4px 12px rgba(234,179,8,0.1);
+}
+
+.vintage-tag {
+  display: inline-block;
+  padding: 4px 12px;
+  background: var(--gold-pale);
+  border: 1.5px solid var(--gold);
+  border-radius: 10px;
+  font-size: 0.7rem;
+  font-weight: 900;
+  color: var(--brown-deep);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
 
 /* SCROLLBAR */
-::-webkit-scrollbar { width: 6px; }
-::-webkit-scrollbar-track { background: var(--cream-dark); }
-::-webkit-scrollbar-thumb { background: var(--gold); border-radius: 3px; }
+::-webkit-scrollbar { width: 8px; }
+::-webkit-scrollbar-track { background: var(--cream); }
+::-webkit-scrollbar-thumb { background: var(--parchment); border-radius: 10px; border: 2px solid var(--cream); }
+::-webkit-scrollbar-thumb:hover { background: var(--gold); }
+/* Map Bike Animation */
+.animated-bike-icon {
+  background: none !important;
+  border: none !important;
+}
+
+.bike-marker {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  filter: drop-shadow(0 4px 6px rgba(0,0,0,0.2));
+}
+
+.bike-rider {
+  font-size: 28px;
+  animation: bikeLean 2s ease-in-out infinite;
+  transform-origin: bottom center;
+}
+
+.bike-shadow {
+  position: absolute;
+  bottom: 5px;
+  width: 20px;
+  height: 6px;
+  background: rgba(0,0,0,0.15);
+  border-radius: 50%;
+  filter: blur(2px);
+  animation: shadowPulse 2s ease-in-out infinite;
+}
+
+@keyframes bikeLean {
+  0%, 100% { transform: rotate(-5deg) translateY(0); }
+  50% { transform: rotate(5deg) translateY(-3px); }
+}
+
+@keyframes shadowPulse {
+  0%, 100% { transform: scale(1); opacity: 0.2; }
+  50% { transform: scale(1.3); opacity: 0.1; }
+}

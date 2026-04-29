@@ -1,18 +1,21 @@
 import React, { useState } from 'react';
 import { X, Calendar, Clock, User, Phone, FileText, CheckCircle2 } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 
 const API = import.meta.env.VITE_API_URL || '';
 
 const BookingModal = ({ service, store, onClose, apiFetch, showToast, isTa }) => {
+  const { user } = useAuth();
   const [formData, setFormData] = useState({
-    customer_name: '',
-    customer_phone: '',
-    customer_email: '',
+    customer_name: user?.name || user?.first_name || user?.username || '',
+    customer_phone: user?.phone || '',
+    customer_email: user?.email || '',
     booking_date: new Date().toISOString().split('T')[0],
     booking_time: '',
     notes: ''
   });
   const [submitting, setSubmitting] = useState(false);
+  const [success, setSuccess] = useState(false);
   const [lockingSlot, setLockingSlot] = useState(false); // Product-Level Lock simulation
 
   // Generate next 7 days
@@ -35,7 +38,9 @@ const BookingModal = ({ service, store, onClose, apiFetch, showToast, isTa }) =>
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!formData.customer_name || !formData.booking_date || !formData.booking_time) {
-      showToast(isTa ? 'தயவுசெய்து அனைத்து கட்டாய புலங்களையும் நிரப்பவும்' : 'Please fill in all required fields');
+      if (typeof showToast === 'function') {
+        showToast(isTa ? 'தயவுசெய்து அனைத்து கட்டாய புலங்களையும் நிரப்பவும்' : 'Please fill in all required fields');
+      }
       return;
     }
 
@@ -52,22 +57,54 @@ const BookingModal = ({ service, store, onClose, apiFetch, showToast, isTa }) =>
       });
 
       if (resp.ok) {
-        showToast(isTa ? '✅ முன்பதிவு வெற்றிகரமாக சமர்ப்பிக்கப்பட்டது!' : '✅ Booking submitted successfully!');
-        onClose();
+        setSuccess(true);
+        if (typeof showToast === 'function') {
+          showToast(isTa ? '✅ முன்பதிவு வெற்றிகரமாக சமர்ப்பிக்கப்பட்டது!' : '✅ Booking submitted successfully!');
+        }
       } else {
         const data = await resp.json();
-        showToast('❌ ' + (data.detail || data.error || 'Booking failed'));
+        if (typeof showToast === 'function') {
+          showToast('❌ ' + (data.detail || data.error || 'Booking failed'));
+        }
       }
     } catch (err) {
       console.error('Booking error:', err);
-      showToast('❌ Server error');
+      if (typeof showToast === 'function') {
+        showToast('❌ Server error');
+      }
     } finally {
       setSubmitting(false);
     }
   };
 
+  if (success) {
+    return (
+      <div className="fixed inset-0 z-[500] flex items-center justify-center p-4 bg-brown-deep/80 backdrop-blur-md animate-in fade-in duration-300">
+        <div className="bg-white w-full max-w-sm rounded-[3rem] p-10 text-center shadow-2xl border-4 border-gold animate-in zoom-in-95 duration-500">
+          <div className="w-24 h-24 bg-gold/10 rounded-full flex items-center justify-center mx-auto mb-6">
+             <CheckCircle2 size={60} className="text-gold animate-bounce" />
+          </div>
+          <h2 className="text-3xl font-serif font-black italic text-brown-deep mb-3">
+            {isTa ? 'வெற்றி!' : 'Success!'}
+          </h2>
+          <p className="text-brown-mid font-bold text-sm leading-relaxed mb-8">
+            {isTa 
+              ? 'உங்கள் சேவை முன்பதிவு செய்யப்பட்டது. கடைக்காரர் விரைவில் உங்களைத் தொடர்புகொள்வார்.' 
+              : 'Your professional service is booked! The expert will contact you shortly to confirm the details.'}
+          </p>
+          <button 
+            onClick={onClose}
+            className="w-full bg-brown-deep text-gold-light py-4 rounded-2xl font-black uppercase tracking-widest text-xs hover:scale-105 active:scale-95 transition-all shadow-lg"
+          >
+            {isTa ? 'சரி' : 'Awesome'}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-brown-deep/80 backdrop-blur-md animate-in fade-in duration-300">
+    <div className="fixed inset-0 z-[500] flex items-center justify-center p-4 bg-brown-deep/80 backdrop-blur-md animate-in fade-in duration-300">
       <div className="bg-cream w-full max-w-lg rounded-[2.5rem] overflow-hidden shadow-2xl border-2 border-gold/20 animate-in zoom-in-95 duration-300">
         
         {/* Top Header - Service Card Summary */}

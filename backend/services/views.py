@@ -1,8 +1,10 @@
-from rest_framework import generics, status
+from rest_framework import generics, status, viewsets, serializers
+from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from .models import Service, Booking
+from products.utils import resolve_category
 from .serializers import ServiceSerializer, BookingSerializer
 from stores.models import Store
 
@@ -28,19 +30,25 @@ class ServiceListCreateView(generics.ListCreateAPIView):
             return Service.objects.filter(store_id=store_id, is_active=True).order_by('-created_at')
         
         # If authenticated shopkeeper, show all their services (dashboard view)
-        if self.request.user.is_authenticated:
+        user = self.request.user
+        if user.is_authenticated and getattr(user, 'role', '') == 'shopkeeper':
             try:
-                store = Store.objects.get(owner=self.request.user)
+                store = Store.objects.get(owner=user)
                 return Service.objects.filter(store=store).order_by('-created_at')
             except Store.DoesNotExist:
                 return Service.objects.none()
         
-        # Otherwise show nothing or all active (depending on policy)
+        # Otherwise show all active services (Customer view)
         return Service.objects.filter(is_active=True).order_by('-created_at')
 
     def perform_create(self, serializer):
         store = Store.objects.get(owner=self.request.user)
-        serializer.save(store=store)
+        category = resolve_category(self.request.data, default_type='service')
+        
+        if not category:
+            raise serializers.ValidationError({"category": "A valid category selection is mandatory."})
+            
+        serializer.save(store=store, category=category)
 
 
 class ServiceDetailView(generics.RetrieveUpdateDestroyAPIView):
@@ -56,6 +64,13 @@ class ServiceDetailView(generics.RetrieveUpdateDestroyAPIView):
 
     def get_queryset(self):
         return Service.objects.all()
+
+    def perform_update(self, serializer):
+        category = resolve_category(self.request.data, default_type='service')
+        if category:
+            serializer.save(category=category)
+        else:
+            serializer.save()
 
 
 # ── BOOKING VIEWS ─────────────────────────────────────────────────────────────
@@ -74,13 +89,52 @@ class BookingListCreateView(generics.ListCreateAPIView):
 
     def get_queryset(self):
         user = self.request.user
-        if user.is_authenticated:
+        if not user.is_authenticated:
+            return Booking.objects.none()
+            
+        if user.role == 'shopkeeper':
             try:
                 store = Store.objects.get(owner=user)
                 return Booking.objects.filter(store=store).order_by('-created_at')
             except Store.DoesNotExist:
-                pass
-        return Booking.objects.none()
+                return Booking.objects.none()
+        
+        # Default: Customer sees their own bookings
+        return Booking.objects.filter(customer=user).order_by('-created_at')
+
+
+class BookingCancelView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pk):
+        try:
+            booking = Booking.objects.get(pk=pk)
+            # Only customer or shopkeeper can cancel
+            if booking.customer != request.user and booking.store.owner != request.user:
+                return Response({'error': 'Unauthorized'}, status=403)
+                
+            reason = request.data.get('reason', 'Cancelled by customer')
+            
+            if booking.status in ['ServiceInProgress', 'Completed', 'Cancelled']:
+                return Response({'error': 'Cannot cancel booking at this stage'}, status=400)
+                
+            booking.status = 'Cancelled'
+            booking.cancel_reason = reason
+            booking.cancelled_by = 'customer' if request.user == booking.customer else 'shopkeeper'
+            from django.utils import timezone
+            booking.cancelled_at = timezone.now()
+            
+            if booking.payment_method != 'COD' and booking.payment_status == 'paid':
+                booking.payment_status = 'refund_initiated'
+                
+            booking.save()
+            
+            from orders.models import OrderStatusHistory
+            OrderStatusHistory.objects.create(booking=booking, status='Cancelled', notes=f"Reason: {reason}")
+            
+            return Response(BookingSerializer(booking).data)
+        except Booking.DoesNotExist:
+            return Response({'error': 'Not found'}, status=404)
 
 
 class BookingDetailView(generics.RetrieveUpdateDestroyAPIView):

@@ -7,8 +7,8 @@ import os
 class PricePredictionView(APIView):
     permission_classes = [AllowAny]
     def post(self, request):
-        product_name = request.data.get('product_name', '').lower()
-        category = request.data.get('category', '').lower()
+        product_name = str(request.data.get('product_name') or '').lower()
+        category = str(request.data.get('category') or '').lower()
         
         # Base market prices for demonstration purposes
         base_price = 100
@@ -94,63 +94,71 @@ class MarketingGeneratorView(APIView):
     ]
 
     def post(self, request):
-        share_type = request.data.get('type', 'single') # 'single', 'multiple'
-        product_names = request.data.get('product_names', [])
-        
-        # Fallback to single product_name if product_names list is not provided
-        if not product_names:
-            product_name = request.data.get('product_name', 'our products')
-            product_names = [product_name]
+        try:
+            share_type = request.data.get('type', 'single') # 'single', 'multiple'
+            product_names = request.data.get('product_names', [])
             
-        category = request.data.get('category', 'General')
-        
-        is_service = request.data.get('is_service', False)
-        
-        # Simple fuzzy matching for service categories
-        templates = self.FALLBACK
-        if is_service:
-            # Service specific generic templates
-            templates = [
-                "Expert {name} services you can trust. Quality craftsmanship and timely delivery for our local community.",
-                "Need a professional for {name}? We're here to help! Book our top-rated service today.",
-                "Your search for reliable {name} ends here. Experience the difference with our dedicated expertise."
-            ]
-        
-        for key in self.TEMPLATES.keys():
-            if key.lower() in category.lower() or category.lower() in key.lower():
-                templates = self.TEMPLATES[key]
-                break
+            # Fallback to single product_name if product_names list is not provided
+            if not product_names:
+                product_name = request.data.get('product_name', 'our products')
+                product_names = [product_name]
+                
+            category = str(request.data.get('category') or 'General')
+            is_service = request.data.get('is_service', False)
+            
+            # Simple fuzzy matching for service categories
+            templates = self.FALLBACK
+            if is_service:
+                templates = [
+                    "Expert {name} services you can trust. Quality craftsmanship and timely delivery for our local community.",
+                    "Need a professional for {name}? We're here to help! Book our top-rated service today.",
+                    "Your search for reliable {name} ends here. Experience the difference with our dedicated expertise."
+                ]
+            
+            for key in self.TEMPLATES.keys():
+                if category and (key.lower() in category.lower() or category.lower() in key.lower()):
+                    templates = self.TEMPLATES[key]
+                    break
 
-        if share_type == 'multiple' and len(product_names) > 1:
-            caption = f"🌟 Explore our latest collection! Featuring: {', '.join(product_names[:5])}. Shop the best quality in town!"
-            offer = "🎉 Combo Special: Buy 3 or more and get 15% OFF!"
-            hashtags = f"#KadaiConnect #ShopLocal #TamilNadu #{category.replace(' ', '')}"
-        else:
-            try:
-                p_name = product_names[0] if product_names else "our product"
-                safe_templates = templates if templates else self.FALLBACK
-                caption = random.choice(safe_templates).format(name=p_name)
-                offer = random.choice(self.OFFERS).format(name=p_name)
-                hashtags = "#{} #{} #KadaiConnect #ShopLocal #TamilNadu".format(
-                    str(p_name).replace(' ', ''),
-                    str(category).replace(' ', '').replace('&', 'And'),
-                )
-            except Exception:
-                # Silent failure to avoid UnicodeEncodeError in terminal
-                caption = f"Quality {product_names[0] if product_names else 'products'} for your needs."
-                offer = "Special deals available in-store!"
-                hashtags = "#ShopLocal #KadaiConnect"
+            if share_type == 'multiple' and len(product_names) > 1:
+                caption = f"🌟 Explore our latest collection! Featuring: {', '.join(map(str, product_names[:5]))}. Shop the best quality in town!"
+                offer = "🎉 Combo Special: Buy 3 or more and get 15% OFF!"
+                hashtags = f"#KadaiConnect #ShopLocal #TamilNadu #{category.replace(' ', '')}"
+            else:
+                try:
+                    p_name = str(product_names[0]) if product_names else "our product"
+                    safe_templates = templates if templates else self.FALLBACK
+                    caption = random.choice(safe_templates).format(name=p_name)
+                    offer = random.choice(self.OFFERS).format(name=p_name)
+                    hashtags = "#{} #{} #KadaiConnect #ShopLocal #TamilNadu".format(
+                        p_name.replace(' ', ''),
+                        category.replace(' ', '').replace('&', 'And'),
+                    )
+                except Exception:
+                    p_name = str(product_names[0]) if product_names else "products"
+                    caption = f"Quality {p_name} for your needs."
+                    offer = "Special deals available in-store!"
+                    hashtags = "#ShopLocal #KadaiConnect"
 
-        return Response({
-            'caption': caption,
-            'hashtags': hashtags,
-            'offer': offer,
-        })
+            return Response({
+                'caption': caption,
+                'hashtags': hashtags,
+                'offer': offer,
+            })
+        except Exception as e:
+            # Absolute fallback
+            return Response({
+                'caption': "Premium quality products and services for you.",
+                'hashtags': "#KadaiConnect #ShopLocal",
+                'offer': "Check out our latest deals!",
+                'error_hint': str(e) if os.environ.get('DEBUG') else None
+            })
 
 class DashboardInsightsView(APIView):
     permission_classes = [AllowAny]
     def post(self, request):
-        category = request.data.get('category', 'General').lower()
+        category_val = request.data.get('category') or 'General'
+        category = str(category_val).lower()
         
         # Categorized trend predictions
         if 'tailor' in category or 'textile' in category:
@@ -333,12 +341,6 @@ class VoiceToTextView(APIView):
         import random
         text = random.choice(mock_transcriptions)
         
-        return Response({
-            'text': text,
-            'confidence': 0.98,
-            'language': 'en-IN'
-        })
-
         return Response({
             'text': text,
             'confidence': 0.98,

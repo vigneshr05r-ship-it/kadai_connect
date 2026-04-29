@@ -15,7 +15,7 @@ class DeliveryAssignment(models.Model):
     booking = models.ForeignKey(Booking, on_delete=models.CASCADE, related_name='deliveries', null=True, blank=True)
     
     partner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, limit_choices_to={'role': 'delivery'}, null=True, blank=True)
-    status = models.CharField(max_length=20, default='available') # available, assigned, picked_up, delivered
+    status = models.CharField(max_length=20, default='available') # available, assigned, heading_to_store, picked_up, out_for_delivery, delivered, returning_to_store, returned_to_store, cancelled
     
     # Tracking
     current_lat = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
@@ -25,5 +25,7 @@ class DeliveryAssignment(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        obj_id = self.order.id if self.order else self.booking.id
+        obj_id = "N/A"
+        if self.order: obj_id = f"Order #{self.order.id}"
+        elif self.booking: obj_id = f"Booking #{self.booking.id}"
         return f"{self.task_type} Task #{self.id} (Ref: {obj_id})"

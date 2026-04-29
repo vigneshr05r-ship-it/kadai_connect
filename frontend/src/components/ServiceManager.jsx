@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import ItemGrid from './ItemGrid';
 
 const API = import.meta.env.VITE_API_URL || '';
 
@@ -108,30 +109,13 @@ export default function ServiceManager({ isTa, services, loading, onAdd, onEdit,
           </div>
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 18 }}>
-          {services.map(s => (
-            <div key={s.id} style={{ ...S.panel, marginBottom: 0, position: 'relative', overflow: 'hidden' }}>
-              {s.image_url && (
-                <div style={{ height: 160, marginBottom: 12, borderRadius: 8, overflow: 'hidden' }}>
-                  <img src={s.image_url} alt={s.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                </div>
-              )}
-              <div style={{ fontFamily: 'var(--font-d)', fontSize: '1rem', fontWeight: 800, color: 'var(--brown-deep)', marginBottom: 4 }}>{s.name}</div>
-              {s.name_ta && <div style={{ fontSize: '.8rem', color: 'var(--brown-mid)', marginBottom: 8 }}>{s.name_ta}</div>}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                <span style={{ fontWeight: 900, color: 'var(--gold)', fontSize: '1.1rem' }}>₹{s.price}</span>
-                <span style={{ fontSize: '.75rem', background: 'var(--cream-dark)', padding: '3px 8px', borderRadius: 20, color: 'var(--brown-mid)' }}>
-                  ⏱️ {s.duration_minutes} {isTa ? 'நிமிடம்' : 'min'}
-                </span>
-              </div>
-              {s.description && <div style={{ fontSize: '.78rem', color: 'var(--brown-mid)', marginBottom: 14, lineHeight: 1.5 }}>{s.description.slice(0, 80)}{s.description.length > 80 ? '...' : ''}</div>}
-              <div style={{ display: 'flex', gap: 8 }}>
-                <button style={S.btnOutline} onClick={() => onEdit(s)}>✏️ {isTa ? 'திருத்து' : 'Edit'}</button>
-                <button style={S.btnDanger} onClick={() => onDelete(s.id)}>🗑️ {isTa ? 'நீக்கு' : 'Delete'}</button>
-              </div>
-            </div>
-          ))}
-        </div>
+        <ItemGrid 
+          items={services} 
+          type="service"
+          onEdit={onEdit}
+          onDelete={onDelete}
+          onAdd={onAdd}
+        />
       )}
     </div>
   );
