@@ -9,7 +9,7 @@ class UserSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ('id', 'username', 'email', 'role', 'phone', 'district', 'address', 'password', 'name', 'pincode', 'shift', 'vehicle_type', 'vehicle_reg_no', 'license_number', 'fcm_token')
+        fields = ('id', 'username', 'email', 'role', 'phone', 'district', 'address', 'latitude', 'longitude', 'password', 'name', 'pincode', 'shift', 'vehicle_type', 'vehicle_reg_no', 'license_number', 'fcm_token')
         extra_kwargs = {
             'password': {'write_only': True, 'required': False}, # Password not required for updates
             'email': {'required': True},
@@ -45,6 +45,15 @@ class UserSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         password = validated_data.pop('password', None)
         user = User(**validated_data)
+        
+        # Geocode if address provided but lat/lng missing
+        if user.address and (not user.latitude or not user.longitude):
+            from utils.geocoding import geocode_address
+            lat, lng = geocode_address(user.address)
+            if lat and lng:
+                user.latitude = lat
+                user.longitude = lng
+                
         if password:
             user.set_password(password)
         user.save()
@@ -52,8 +61,19 @@ class UserSerializer(serializers.ModelSerializer):
 
     def update(self, instance, validated_data):
         password = validated_data.pop('password', None)
+        old_address = instance.address
+        
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
+            
+        # If address changed, re-geocode
+        if instance.address != old_address or (not instance.latitude or not instance.longitude):
+            from utils.geocoding import geocode_address
+            lat, lng = geocode_address(instance.address)
+            if lat and lng:
+                instance.latitude = lat
+                instance.longitude = lng
+                
         if password:
             instance.set_password(password)
         instance.save()

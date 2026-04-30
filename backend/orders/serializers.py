@@ -34,6 +34,9 @@ class OrderSerializer(serializers.ModelSerializer):
     
     delivery_info = serializers.SerializerMethodField()
     
+    customer_lat = serializers.SerializerMethodField()
+    customer_lng = serializers.SerializerMethodField()
+    
     class Meta:
         model = Order
         fields = '__all__'
@@ -46,7 +49,26 @@ class OrderSerializer(serializers.ModelSerializer):
 
     def get_store_lng(self, obj):
         if obj.store and obj.store.longitude is not None:
-            return float(obj.store.longitude)
+            try: return float(obj.store.longitude)
+            except: return None
+        return None
+
+    def get_customer_lat(self, obj):
+        # 1. Try order-specific lat
+        if obj.customer_lat is not None:
+            return float(obj.customer_lat)
+        # 2. Fallback to customer profile lat
+        if obj.customer and obj.customer.latitude is not None:
+            return float(obj.customer.latitude)
+        return None
+
+    def get_customer_lng(self, obj):
+        # 1. Try order-specific lng
+        if obj.customer_lng is not None:
+            return float(obj.customer_lng)
+        # 2. Fallback to customer profile lng
+        if obj.customer and obj.customer.longitude is not None:
+            return float(obj.customer.longitude)
         return None
 
     def get_delivery_info(self, obj):
