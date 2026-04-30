@@ -912,9 +912,12 @@ export default function ShopkeeperDashboard() {
     // Parallel execution
     fetchItem('/api/users/me/', (d) => updateUser(d));
     fetchItem('/api/ai/festivals/', (data) => {
-      setFestivals(data);
+      const safeData = Array.isArray(data) ? data : [];
+      setFestivals(safeData);
       const today = new Date();
-      const upcoming = data.filter(f => new Date(f.date) >= today).sort((a,b) => new Date(a.date) - new Date(b.date));
+      const upcoming = safeData
+        .filter(f => f && f.date && new Date(f.date) >= today)
+        .sort((a,b) => new Date(a.date) - new Date(b.date));
       if (upcoming.length > 0) {
         const next = upcoming[0];
         const diffDays = Math.ceil(Math.abs(new Date(next.date) - today) / 86400000);
@@ -1189,13 +1192,13 @@ export default function ShopkeeperDashboard() {
     } catch (e) { showToast('❌ Failed to update capabilities'); }
   };
 
-  const DEMANDS = insights.demands.length > 0 ? insights.demands.map(d => ({ ...d, color: 'linear-gradient(to right,var(--gold),var(--gold-light))' })) : [
+  const DEMANDS = (insights?.demands?.length > 0) ? insights.demands.map(d => ({ ...d, color: 'linear-gradient(to right,var(--gold),var(--gold-light))' })) : [
     { label: isTa ? 'பட்டு சாடிகள்' : 'Silk Sarees', pct: 90, color: 'linear-gradient(to right,var(--gold),var(--gold-light))' },
     { label: isTa ? 'பித்தளை விளக்குகள்' : 'Brass Lamps', pct: 78, color: 'linear-gradient(to right,var(--gold),var(--gold-light))' },
     { label: isTa ? 'பருத்தி குர்தாக்கள்' : 'Cotton Kurtas', pct: 65, color: 'linear-gradient(to right,var(--rust),#d4674f)' },
   ];
 
-  const SUGGESTIONS = insights.suggestions.length > 0 ? insights.suggestions : [
+  const SUGGESTIONS = (insights?.suggestions?.length > 0) ? insights.suggestions : [
     { icon: '📱', title: isTa ? 'வாட்ஸ்அப் பிரச்சாரம் · வெள்ளி மாலை 6–8 மணி' : 'WhatsApp Campaign · Friday 6–8 PM', body: isTa ? '5 கிமீ சுற்றளவில் 25–45 வயதுடைய பெண்களை இலக்காகக் கொள்ளுங்கள். பட்டுப் புடவைகளை விளம்பரப்படுத்துங்கள். எதிர்பார்க்கப்படும் நோக்கம்: 420 வாடிக்கையாளர்கள்.' : 'Target women aged 25–45 within 5 km. Promote silk sarees. Expected reach: 420 customers.', tag: isTa ? 'அதிக தாக்கம்' : 'High Impact' },
   ];
 
