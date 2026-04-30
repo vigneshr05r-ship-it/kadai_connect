@@ -194,9 +194,9 @@ export default function FestivalCalendar() {
           setFestivals(enriched);
           
           const selectedStr = selectedDate.toISOString().split('T')[0];
-          const directMatch = enriched.find(d => d.date === selectedStr);
-          const nextFest = enriched.find(d => new Date(d.date) >= selectedDate);
-          setInsights(directMatch || nextFest || enriched[0]);
+          const directMatch = Array.isArray(enriched) ? enriched.find?.(d => d.date === selectedStr) : null;
+          const nextFest = Array.isArray(enriched) ? enriched.find?.(d => new Date(d.date) >= selectedDate) : null;
+          setInsights(directMatch || nextFest || (Array.isArray(enriched) ? enriched[0] : null));
         }
       } catch (err) {
         console.error("Festival Fetch Error:", err);
@@ -208,15 +208,15 @@ export default function FestivalCalendar() {
   useEffect(() => {
     if (festivals.length > 0) {
       const selectedStr = selectedDate.toISOString().split('T')[0];
-      const directMatch = festivals.find(d => d.date === selectedStr);
-      const nextFest = festivals.find(d => new Date(d.date) >= selectedDate);
-      setInsights(directMatch || nextFest || festivals[0]);
+      const directMatch = Array.isArray(festivals) ? festivals.find?.(d => d.date === selectedStr) : null;
+      const nextFest = Array.isArray(festivals) ? festivals.find?.(d => new Date(d.date) >= selectedDate) : null;
+      setInsights(directMatch || nextFest || (Array.isArray(festivals) ? festivals[0] : null));
     }
   }, [selectedDate, festivals]);
 
   useEffect(() => {
     if (search.trim().length > 1) {
-        const filtered = festivals.filter(f => 
+        const filtered = (Array.isArray(festivals) ? festivals : []).filter?.(f => 
             f.name.toLowerCase().includes(search.toLowerCase()) || 
             (f.name_ta && f.name_ta.includes(search))
         );
@@ -251,7 +251,7 @@ export default function FestivalCalendar() {
     for (let d = 1; d <= days; d++) {
         const fullDate = new Date(year, month, d);
         const dateStr = fullDate.toISOString().split('T')[0];
-        const fests = (festivals.length > 0 ? festivals : MOCK_FESTIVALS).filter(f => f.date === dateStr);
+        const fests = (Array.isArray(festivals) && festivals.length > 0 ? festivals : MOCK_FESTIVALS).filter?.(f => f.date === dateStr) || [];
         const isToday = fullDate.toDateString() === new Date(2026, 3, 1).toDateString();
         const isSelected = selectedDate.toDateString() === fullDate.toDateString();
 
@@ -288,7 +288,7 @@ export default function FestivalCalendar() {
         const day = new Date(selectedDate);
         day.setDate(selectedDate.getDate() + i);
         const dateStr = day.toISOString().split('T')[0];
-        const fests = (festivals.length > 0 ? festivals : MOCK_FESTIVALS).filter(f => f.date === dateStr);
+        const fests = (Array.isArray(festivals) && festivals.length > 0 ? festivals : MOCK_FESTIVALS).filter?.(f => f.date === dateStr) || [];
         weekDays.push({ date: day, fests });
     }
 
