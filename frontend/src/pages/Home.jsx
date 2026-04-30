@@ -32,49 +32,26 @@ export default function Home() {
   const [myOrders, setMyOrders] = useState([]);
   const [bookingService, setBookingService] = useState(null);
 
-  // Fetch all data
+  // Fetch all data progressively for instant feel
   useEffect(() => {
-    const loadData = async () => {
+    const fetchItem = async (endpoint, setter, transform = (d) => d) => {
       try {
-        const [pResp, sResp, stResp, oResp, cResp] = await Promise.all([
-          apiFetch('/api/products/'),
-          apiFetch('/api/services/'),
-          apiFetch('/api/stores/'),
-          apiFetch('/api/orders/'),
-          apiFetch('/api/products/categories/?top_level=true')
-        ]);
-
-        if (pResp?.ok) {
-          const d = await pResp.json();
-          const items = Array.isArray(d) ? d : (d.results || []);
-          if (items.length > 0) setDbProducts(items);
+        const resp = await apiFetch(endpoint);
+        if (resp?.ok) {
+          const data = await resp.json();
+          setter(transform(data));
         }
-
-        if (sResp?.ok) {
-          const d = await sResp.json();
-          const items = Array.isArray(d) ? d : (d.results || []);
-          if (items.length > 0) setDbServices(items);
-        }
-
-        if (stResp?.ok) {
-          const d = await stResp.json();
-          const items = Array.isArray(d) ? d : (d.results || []);
-          if (items.length > 0) setDbStores(items);
-        }
-
-        if (oResp?.ok) {
-          const d = await oResp.json();
-          setMyOrders(Array.isArray(d) ? d : (d.results || []));
-        }
-
-        if (cResp?.ok) {
-          setCategories(await cResp.json());
-        }
-      } catch (err) {
-        console.error("Home load error:", err);
-      }
+      } catch (e) { console.error(`Error loading ${endpoint}:`, e); }
     };
-    loadData();
+
+    const getArr = (d) => Array.isArray(d) ? d : (d.results || []);
+
+    // Parallel execution but progressive state updates
+    fetchItem('/api/products/', setDbProducts, getArr);
+    fetchItem('/api/services/', setDbServices, getArr);
+    fetchItem('/api/stores/', setDbStores, getArr);
+    fetchItem('/api/orders/', setMyOrders, getArr);
+    fetchItem('/api/products/categories/?top_level=true', setCategories);
   }, [apiFetch]);
 
   // Filter Logic

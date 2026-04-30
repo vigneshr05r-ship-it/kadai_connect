@@ -894,81 +894,57 @@ export default function ShopkeeperDashboard() {
 
 
   const fetchData = async () => {
-    setLoading(true);
-    try {
-        const [fResp, pResp, oResp, sResp, svResp, uResp] = await Promise.all([
-          apiFetch('/api/ai/festivals/'),
-          apiFetch('/api/products/'),
-          apiFetch('/api/orders/'),
-          apiFetch('/api/stores/mine/'),
-          apiFetch('/api/services/'),
-          apiFetch('/api/users/me/')
-        ]);
+    // We don't set global loading to true anymore to avoid blank screen
+    const fetchItem = async (endpoint, setter, transform = (d) => d) => {
+      try {
+        const resp = await apiFetch(endpoint);
+        if (resp?.ok) {
+          const data = await resp.json();
+          setter(transform(data));
+          return Array.isArray(data) ? data.length : (data.results?.length || 0);
+        }
+      } catch (e) { console.error(`Error loading ${endpoint}:`, e); }
+      return 0;
+    };
 
-        if (uResp.ok) {
-          const uData = await uResp.json();
-          updateUser(uData);
-        }
+    const getArr = (d) => Array.isArray(d) ? d : (d.results || []);
 
-        if (fResp.ok) {
-          const data = await fResp.json();
-          setFestivals(data);
-          const today = new Date();
-          const upcoming = data.filter(f => new Date(f.date) >= today).sort((a,b) => new Date(a.date) - new Date(b.date));
-          if (upcoming.length > 0) {
-            const next = upcoming[0];
-            const diffDays = Math.ceil(Math.abs(new Date(next.date) - today) / 86400000);
-            setNextFestival({ ...next, daysLeft: diffDays });
-          }
-        }
+    // Parallel execution
+    fetchItem('/api/users/me/', (d) => updateUser(d));
+    fetchItem('/api/ai/festivals/', (data) => {
+      setFestivals(data);
+      const today = new Date();
+      const upcoming = data.filter(f => new Date(f.date) >= today).sort((a,b) => new Date(a.date) - new Date(b.date));
+      if (upcoming.length > 0) {
+        const next = upcoming[0];
+        const diffDays = Math.ceil(Math.abs(new Date(next.date) - today) / 86400000);
+        setNextFestival({ ...next, daysLeft: diffDays });
+      }
+    });
 
-        let fetchedProductsCount = 0;
-        let fetchedOrdersCount = 0;
+    // Handle Products and Orders for "New User" check
+    const pCount = await fetchItem('/api/products/', setProducts, getArr);
+    const oCount = await fetchItem('/api/orders/', setDbOrders, getArr);
+    
+    setIsNewUser(pCount === 0 && oCount === 0);
 
-        if (pResp?.ok) {
-          const pData = await pResp.json();
-          const pArr = Array.isArray(pData) ? pData : (pData.results || []);
-          setProducts(pArr);
-          fetchedProductsCount = pArr.length;
-        }
-        if (oResp?.ok) {
-          const oData = await oResp.json();
-          const oArr = Array.isArray(oData) ? oData : (oData.results || []);
-          setDbOrders(oArr);
-          fetchedOrdersCount = oArr.length;
-        }
-        if (svResp?.ok) {
-          const svData = await svResp.json();
-          setServices(Array.isArray(svData) ? svData : (svData.results || []));
-        }
-        if (sResp?.ok) {
-          const sData = await sResp.json();
-          setStoreData(sData);
-          setStoreEdit({ 
-            name: sData.name || '', 
-            address: sData.address || '', 
-            location: sData.location || '', 
-            category: sData.category || 'General',
-            description: sData.description || '',
-            contact_name: sData.contact_name || '',
-            phone: sData.phone || '',
-            district: sData.district || 'Chennai',
-            pincode: sData.pincode || '',
-            logo: null, 
-            banner: null 
-          });
-        }
-
-    if (fetchedProductsCount === 0 && fetchedOrdersCount === 0) {
-      setIsNewUser(true);
-    } else {
-      setIsNewUser(false);
-    }
-    } catch (err) {
-      console.error('Error fetching dashboard data:', err);
-    } finally {
-      setLoading(false);
-    }
+    fetchItem('/api/services/', setServices, getArr);
+    fetchItem('/api/stores/mine/', (sData) => {
+      setStoreData(sData);
+      setStoreEdit({ 
+        name: sData.name || '', 
+        address: sData.address || '', 
+        location: sData.location || '', 
+        category: sData.category || 'General',
+        description: sData.description || '',
+        contact_name: sData.contact_name || '',
+        phone: sData.phone || '',
+        district: sData.district || 'Chennai',
+        pincode: sData.pincode || '',
+        logo: null, 
+        banner: null 
+      });
+    });
   };
 
   useEffect(() => {
