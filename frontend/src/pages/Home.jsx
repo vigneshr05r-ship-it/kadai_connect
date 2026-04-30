@@ -62,7 +62,7 @@ export default function Home() {
     fetchItem('/api/services/', setDbServices, 'services', getArr);
     fetchItem('/api/stores/', setDbStores, 'stores', getArr);
     fetchItem('/api/orders/', setMyOrders, 'orders', getArr);
-    fetchItem('/api/products/categories/?top_level=true', setCategories, 'categories');
+    fetchItem('/api/products/categories/?top_level=true', setCategories, 'categories', getArr);
   }, [apiFetch]);
 
   // Filter Logic
@@ -142,7 +142,7 @@ export default function Home() {
               {loading.categories ? (
                 Array(4).fill(0).map((_, i) => <CategorySkeleton key={i} />)
               ) : (
-                categories.slice(0, 4).map(c => (
+                (Array.isArray(categories) ? categories : []).slice(0, 4).map(c => (
                   <div key={c.id || c.name} onClick={() => { setPortalType(c.type === 'service' ? 'services' : 'products'); setCategoryFilter(c.name); }} style={{ background: '#fff', padding: '20px 10px', borderRadius: 20, textAlign: 'center', border: '1.5px solid var(--parchment)', cursor: 'pointer', transition: '.2s', boxShadow: '0 4px 10px rgba(59,31,14,0.03)' }}>
                      <div style={{ fontSize: '1.8rem', marginBottom: 6 }}>{c.icon || '📦'}</div>
                      <div style={{ fontSize: '.75rem', fontWeight: 800, color: 'var(--brown-mid)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{isTa ? (c.name_ta || c.name) : c.name}</div>
@@ -197,7 +197,7 @@ export default function Home() {
               </div>
             ) : (
               <ItemGrid 
-                items={filteredProducts.slice(0, portalType === 'all' ? 8 : 100)} 
+                items={(Array.isArray(filteredProducts) ? filteredProducts : []).slice(0, portalType === 'all' ? 8 : 100)} 
                 type="product"
               />
             )}
@@ -217,7 +217,7 @@ export default function Home() {
               </div>
             ) : (
               <ItemGrid 
-                items={filteredServices.slice(0, portalType === 'all' ? 4 : 100)} 
+                items={(Array.isArray(filteredServices) ? filteredServices : []).slice(0, portalType === 'all' ? 4 : 100)} 
                 type="service"
                 onSelect={setBookingService}
               />
