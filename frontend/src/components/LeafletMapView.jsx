@@ -3,29 +3,25 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { Maximize, X } from 'lucide-react';
 
-// Fix for default marker icons
-import markerIcon from 'leaflet/dist/images/marker-icon.png';
-import markerShadow from 'leaflet/dist/images/marker-shadow.png';
-
-const DefaultIcon = L.icon({
-    iconUrl: markerIcon,
-    shadowUrl: markerShadow,
-    iconSize: [25, 41],
-    iconAnchor: [12, 41],
-    popupAnchor: [1, -34]
+// Self-contained emoji icons — no external URLs, never broken
+const DefaultIcon = L.divIcon({
+  html: `<div style="font-size:24px;line-height:1;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.4))">📍</div>`,
+  className: '',
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
 });
 
 // Custom Truck Icon Creator
 const createTruckIcon = () => {
   return L.divIcon({
-    html: `<div style="background: white; padding: 8px; border-radius: 50%; border: 2.5px solid var(--brown-deep); box-shadow: 0 4px 15px rgba(0,0,0,0.3); display: flex; align-items: center; justify-content: center;">
-             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--brown-deep)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13"></rect><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"></polygon><circle cx="5.5" cy="18.5" r="2.5"></circle><circle cx="18.5" cy="18.5" r="2.5"></circle></svg>
-           </div>`,
-    className: 'custom-truck-icon',
+    html: `<div style="font-size:32px;line-height:1;filter:drop-shadow(0 2px 6px rgba(0,0,0,0.5))">🛵</div>`,
+    className: '',
     iconSize: [40, 40],
     iconAnchor: [20, 20]
   });
 };
+
 
 export default function LeafletMapView({ driverPos, route, stops, origin, isMaximized, onToggleMaximize }) {
   const mapRef = useRef(null);

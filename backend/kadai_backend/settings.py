@@ -11,7 +11,9 @@ SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY') or 'django-insecure-local-dev-f
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.environ.get('DJANGO_DEBUG', 'True') == 'True'
 
-ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1,testserver').split(',')
+ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1,testserver,kadai-connect.onrender.com,kadai-connect.vercel.app').split(',')
+if not DEBUG:
+    ALLOWED_HOSTS.append('*')
 
 # Production Security Headers
 if not DEBUG:
@@ -127,13 +129,21 @@ if not DEBUG or os.environ.get('CLOUDINARY_CLOUD_NAME'):
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # CORS
-CORS_ALLOW_ALL_ORIGINS = DEBUG
-if not DEBUG:
-    _cors_origins = os.environ.get('CORS_ALLOWED_ORIGINS', '')
-    CORS_ALLOWED_ORIGINS = [o.strip() for o in _cors_origins.split(',') if o.strip()]
-    # Also allow all Vercel preview deployment URLs automatically
-    CORS_ALLOW_ALL_ORIGINS = True  # Hardened for Vercel/Render production stability
-    CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOW_CREDENTIALS = True
+
+# Add typical Vercel deployment URL to allowed origins explicitly
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:5173",
+    "http://localhost:3000",
+    "https://kadai-connect.vercel.app",
+    "https://kadai-connect-vigneshr05r-ship-its-projects.vercel.app",
+]
+
+# If CORS_ALLOW_ALL_ORIGINS is True, CORS_ALLOW_CREDENTIALS can cause issues with some browsers/frameworks
+# if the origin is not explicitly in CORS_ALLOWED_ORIGINS. We will keep CORS_ALLOW_ALL_ORIGINS = True
+# but also populate CORS_ALLOWED_ORIGINS.
+
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
