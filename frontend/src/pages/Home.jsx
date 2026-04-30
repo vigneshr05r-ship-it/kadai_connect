@@ -67,7 +67,7 @@ export default function Home() {
 
   // Filter Logic
   const filteredProducts = useMemo(() => {
-    return dbProducts.filter(p => {
+    return (dbProducts || [])?.filter?.(p => {
       const matchesCat = categoryFilter === 'all' || p.category === categoryFilter || p.category_name === categoryFilter;
       const matchesSearch = !search || p.name.toLowerCase().includes(search.toLowerCase()) || p.name_ta?.includes(search);
       return matchesCat && matchesSearch;
@@ -75,7 +75,7 @@ export default function Home() {
   }, [dbProducts, categoryFilter, search]);
 
   const filteredServices = useMemo(() => {
-    return dbServices.filter(s => {
+    return (dbServices || [])?.filter?.(s => {
       const matchesCat = categoryFilter === 'all' || s.category === categoryFilter || s.category_name === categoryFilter;
       const matchesSearch = !search || s.name.toLowerCase().includes(search.toLowerCase()) || s.name_ta?.includes(search);
       return matchesCat && matchesSearch;
@@ -125,9 +125,9 @@ export default function Home() {
       <div style={{ display: 'flex', flexDirection: 'column', gap: 40 }}>
         
         {/* Active Order Tracker */}
-        {myOrders.find(o => !['delivered', 'cancelled'].includes(o.status)) && (
+        {myOrders?.find?.(o => !['delivered', 'cancelled'].includes(o.status)) && (
           <div style={{ background: 'var(--cream-dark)', borderRadius: 24, padding: 4, border: '1.5px solid var(--gold)' }}>
-            <OrderTracker order={myOrders.find(o => !['delivered', 'cancelled'].includes(o.status))} />
+            <OrderTracker order={myOrders?.find?.(o => !['delivered', 'cancelled'].includes(o.status))} />
           </div>
         )}
 
@@ -229,7 +229,7 @@ export default function Home() {
       {bookingService && (
         <BookingModal 
           service={bookingService}
-          store={dbStores.find(s => s.id === bookingService.store_id) || dbStores[0]}
+          store={dbStores?.find?.(s => s.id === bookingService.store_id) || dbStores?.[0]}
           onClose={() => setBookingService(null)}
           apiFetch={apiFetch}
           isTa={isTa}
