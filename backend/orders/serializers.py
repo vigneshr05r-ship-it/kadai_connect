@@ -50,16 +50,20 @@ class OrderSerializer(serializers.ModelSerializer):
         return None
 
     def get_delivery_info(self, obj):
-        # Import here to avoid circular imports
         from delivery.models import DeliveryAssignment
         assignment = DeliveryAssignment.objects.filter(order=obj).last()
         if assignment:
+            p = assignment.partner
+            p_name = "Unassigned"
+            if p:
+                p_name = (f"{p.first_name or ''} {p.last_name or ''}").strip() or p.username
+            
             return {
-                'partner_name': (f"{assignment.partner.first_name} {assignment.partner.last_name}").strip() or assignment.partner.username if assignment.partner else 'Unassigned',
-                'partner_phone': assignment.partner.phone if assignment.partner else '',
+                'partner_name': p_name,
+                'partner_phone': p.phone if p else '',
                 'status': assignment.status,
-                'lat': float(assignment.current_lat) if assignment.current_lat else None,
-                'lng': float(assignment.current_lng) if assignment.current_lng else None,
+                'lat': float(assignment.current_lat) if (assignment.current_lat and str(assignment.current_lat).replace('.','').isdigit()) else None,
+                'lng': float(assignment.current_lng) if (assignment.current_lng and str(assignment.current_lng).replace('.','').isdigit()) else None,
                 'updated_at': assignment.updated_at
             }
         return None

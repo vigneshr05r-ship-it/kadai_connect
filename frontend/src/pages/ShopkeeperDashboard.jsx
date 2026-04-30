@@ -1515,7 +1515,7 @@ export default function ShopkeeperDashboard() {
                     <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '.8rem' }}>
                       <thead><tr>{(isTa ? ['ஆர்டர் ஐடி','வாடிக்கையாளர்','தயாரிப்பு','தொகை','நேரம்','நிலை'] : ['Order ID','Customer','Product','Amount','Time','Status']).map(h => <th key={h} style={{ textAlign: 'left', padding: '12px 10px', background: 'var(--brown-deep)', color: 'var(--gold-light)', fontFamily: 'var(--font-d)', fontSize: '.75rem', letterSpacing: '.5px' }}>{h}</th>)}</tr></thead>
                       <tbody>
-                        {dbOrders?.length > 0 ? dbOrders?.slice?.(0, 10).map(o => (
+                        {(Array.isArray(dbOrders) && dbOrders.length > 0) ? dbOrders.slice(0, 10).map(o => (
                           <tr key={o.id}>
                             <td style={{ padding: '12px 10px', borderBottom: '1px solid var(--parchment)' }}>#ORD-{o.id}</td>
                             <td style={{ padding: '12px 10px', borderBottom: '1px solid var(--parchment)' }}>{o.customer_name || 'Guest'}</td>
