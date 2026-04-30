@@ -10,7 +10,7 @@ import ItemGrid from '../components/ItemGrid';
 import OrderTracker from '../components/OrderTracker';
 import MainLayout from '../components/MainLayout';
 import BookingModal from '../components/BookingModal';
-
+import { ProductSkeleton, CategorySkeleton } from '../components/Skeleton';
 
 export default function Home() {
   const { user, apiFetch } = useAuth();
@@ -31,27 +31,38 @@ export default function Home() {
   const [categories, setCategories] = useState([]);
   const [myOrders, setMyOrders] = useState([]);
   const [bookingService, setBookingService] = useState(null);
+  
+  const [loading, setLoading] = useState({
+    products: true,
+    services: true,
+    stores: true,
+    categories: true
+  });
 
   // Fetch all data progressively for instant feel
   useEffect(() => {
-    const fetchItem = async (endpoint, setter, transform = (d) => d) => {
+    const fetchItem = async (endpoint, setter, key, transform = (d) => d) => {
       try {
         const resp = await apiFetch(endpoint);
         if (resp?.ok) {
           const data = await resp.json();
           setter(transform(data));
         }
-      } catch (e) { console.error(`Error loading ${endpoint}:`, e); }
+      } catch (e) { 
+        console.error(`Error loading ${endpoint}:`, e); 
+      } finally {
+        setLoading(prev => ({ ...prev, [key]: false }));
+      }
     };
 
     const getArr = (d) => Array.isArray(d) ? d : (d.results || []);
 
     // Parallel execution but progressive state updates
-    fetchItem('/api/products/', setDbProducts, getArr);
-    fetchItem('/api/services/', setDbServices, getArr);
-    fetchItem('/api/stores/', setDbStores, getArr);
-    fetchItem('/api/orders/', setMyOrders, getArr);
-    fetchItem('/api/products/categories/?top_level=true', setCategories);
+    fetchItem('/api/products/', setDbProducts, 'products', getArr);
+    fetchItem('/api/services/', setDbServices, 'services', getArr);
+    fetchItem('/api/stores/', setDbStores, 'stores', getArr);
+    fetchItem('/api/orders/', setMyOrders, 'orders', getArr);
+    fetchItem('/api/products/categories/?top_level=true', setCategories, 'categories');
   }, [apiFetch]);
 
   // Filter Logic
@@ -128,17 +139,16 @@ export default function Home() {
               <button onClick={() => navigate('/categories')} style={{ fontSize: '.8rem', color: 'var(--gold)', fontWeight: 800, background: 'none', border: 'none', cursor: 'pointer' }}>View All</button>
             </div>
             <div className="responsive-home-categories-grid">
-              {(categories.length > 0 ? categories : [
-                { name: 'Grocery', icon: '🛒', color: 'var(--green)' },
-                { name: 'Clothing', icon: '👗', color: 'var(--rust)' },
-                { name: 'Electronics', icon: '💻', color: 'var(--brown-deep)' },
-                { name: 'Jewellery', icon: '💎', color: 'var(--gold)' }
-              ]).slice(0, 4).map(c => (
-                <div key={c.id || c.name} onClick={() => { setPortalType(c.type === 'service' ? 'services' : 'products'); setCategoryFilter(c.name); }} style={{ background: '#fff', padding: '20px 10px', borderRadius: 20, textAlign: 'center', border: '1.5px solid var(--parchment)', cursor: 'pointer', transition: '.2s', boxShadow: '0 4px 10px rgba(59,31,14,0.03)' }}>
-                   <div style={{ fontSize: '1.8rem', marginBottom: 6 }}>{c.icon || '📦'}</div>
-                   <div style={{ fontSize: '.75rem', fontWeight: 800, color: 'var(--brown-mid)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{isTa ? (c.name_ta || c.name) : c.name}</div>
-                </div>
-              ))}
+              {loading.categories ? (
+                Array(4).fill(0).map((_, i) => <CategorySkeleton key={i} />)
+              ) : (
+                categories.slice(0, 4).map(c => (
+                  <div key={c.id || c.name} onClick={() => { setPortalType(c.type === 'service' ? 'services' : 'products'); setCategoryFilter(c.name); }} style={{ background: '#fff', padding: '20px 10px', borderRadius: 20, textAlign: 'center', border: '1.5px solid var(--parchment)', cursor: 'pointer', transition: '.2s', boxShadow: '0 4px 10px rgba(59,31,14,0.03)' }}>
+                     <div style={{ fontSize: '1.8rem', marginBottom: 6 }}>{c.icon || '📦'}</div>
+                     <div style={{ fontSize: '.75rem', fontWeight: 800, color: 'var(--brown-mid)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{isTa ? (c.name_ta || c.name) : c.name}</div>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         )}
@@ -151,15 +161,23 @@ export default function Home() {
               <button onClick={() => navigate('/shops')} style={{ fontSize: '.8rem', color: 'var(--gold)', fontWeight: 800, background: 'none', border: 'none', cursor: 'pointer' }}>View All</button>
             </div>
             <div style={{ display: 'flex', gap: 18, overflowX: 'auto', paddingBottom: 12, scrollbarWidth: 'none' }}>
-              {dbStores.map(s => (
-                <div key={s.id} onClick={() => navigate(`/store/${s.id}`)} style={{ flexShrink: 0, width: 160, background: '#fff', borderRadius: 24, border: '1.5px solid var(--parchment)', overflow: 'hidden', cursor: 'pointer', transition: '.3s', boxShadow: '0 6px 15px rgba(59,31,14,0.06)' }}>
-                  <div style={{ height: 100, background: `url(${s.banner_url || 'https://images.unsplash.com/photo-1534723452862-4c874e70d6f2?w=200'}) center/cover` }} />
-                  <div style={{ padding: 14, textAlign: 'center' }}>
-                    <div style={{ fontSize: '.85rem', fontWeight: 800, color: 'var(--brown-deep)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{s.name}</div>
-                    <div style={{ fontSize: '.75rem', color: 'var(--gold)', fontWeight: 800, marginTop: 6, background: 'var(--cream)', display: 'inline-block', padding: '2px 8px', borderRadius: 8 }}>⭐ {s.rating || '5.0'}</div>
+              {loading.stores ? (
+                Array(4).fill(0).map((_, i) => (
+                  <div key={i} style={{ flexShrink: 0, width: 160 }}>
+                    <ProductSkeleton />
                   </div>
-                </div>
-              ))}
+                ))
+              ) : (
+                dbStores.map(s => (
+                  <div key={s.id} onClick={() => navigate(`/store/${s.id}`)} style={{ flexShrink: 0, width: 160, background: '#fff', borderRadius: 24, border: '1.5px solid var(--parchment)', overflow: 'hidden', cursor: 'pointer', transition: '.3s', boxShadow: '0 6px 15px rgba(59,31,14,0.06)' }}>
+                    <div style={{ height: 100, background: `url(${s.banner_url || 'https://images.unsplash.com/photo-1534723452862-4c874e70d6f2?w=200'}) center/cover` }} />
+                    <div style={{ padding: 14, textAlign: 'center' }}>
+                      <div style={{ fontSize: '.85rem', fontWeight: 800, color: 'var(--brown-deep)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{s.name}</div>
+                      <div style={{ fontSize: '.75rem', color: 'var(--gold)', fontWeight: 800, marginTop: 6, background: 'var(--cream)', display: 'inline-block', padding: '2px 8px', borderRadius: 8 }}>⭐ {s.rating || '5.0'}</div>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         )}
@@ -173,10 +191,16 @@ export default function Home() {
               </h2>
               {portalType === 'all' && <button onClick={() => setPortalType('products')} style={{ fontSize: '.8rem', color: 'var(--gold)', fontWeight: 800, background: 'none', border: 'none', cursor: 'pointer' }}>View All</button>}
             </div>
-            <ItemGrid 
-              items={filteredProducts.slice(0, portalType === 'all' ? 8 : 100)} 
-              type="product"
-            />
+            {loading.products ? (
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {Array(4).fill(0).map((_, i) => <ProductSkeleton key={i} />)}
+              </div>
+            ) : (
+              <ItemGrid 
+                items={filteredProducts.slice(0, portalType === 'all' ? 8 : 100)} 
+                type="product"
+              />
+            )}
           </div>
         )}
 
@@ -187,11 +211,17 @@ export default function Home() {
               <h2 style={{ fontSize: '1.25rem', fontWeight: 900, color: 'var(--brown-deep)' }}>Professional Services</h2>
               {portalType === 'all' && <button onClick={() => setPortalType('services')} style={{ fontSize: '.8rem', color: 'var(--gold)', fontWeight: 800, background: 'none', border: 'none', cursor: 'pointer' }}>View All</button>}
             </div>
-            <ItemGrid 
-              items={filteredServices.slice(0, portalType === 'all' ? 4 : 100)} 
-              type="service"
-              onSelect={setBookingService}
-            />
+            {loading.services ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {Array(2).fill(0).map((_, i) => <ProductSkeleton key={i} />)}
+              </div>
+            ) : (
+              <ItemGrid 
+                items={filteredServices.slice(0, portalType === 'all' ? 4 : 100)} 
+                type="service"
+                onSelect={setBookingService}
+              />
+            )}
           </div>
         )}
       </div>

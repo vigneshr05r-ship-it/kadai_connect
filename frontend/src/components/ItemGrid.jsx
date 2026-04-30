@@ -32,7 +32,7 @@ export default function ItemGrid({ items, type = 'product', onSelect, onEdit, on
           <div key={item.id} className="compact-card">
             {/* Image Container (1:1 Aspect Ratio) */}
             <div className="card-image-wrapper" onClick={() => onSelect ? onSelect(item) : navigate(`/${type}/${item.id}`)}>
-              <img src={imageUrl} alt={item.name} className="card-image" />
+              <img src={imageUrl} alt={item.name} className="card-image" loading="lazy" />
               
               {/* Type Badge */}
               <div className="card-badge">

@@ -27,19 +27,19 @@ class ServiceListCreateView(generics.ListCreateAPIView):
         # If store_id is provided, show only active services for that store (public view)
         store_id = self.request.query_params.get('store')
         if store_id:
-            return Service.objects.filter(store_id=store_id, is_active=True).order_by('-created_at')
+            return Service.objects.filter(store_id=store_id, is_active=True).select_related('store', 'category').order_by('-created_at')
         
         # If authenticated shopkeeper, show all their services (dashboard view)
         user = self.request.user
         if user.is_authenticated and getattr(user, 'role', '') == 'shopkeeper':
             try:
                 store = Store.objects.get(owner=user)
-                return Service.objects.filter(store=store).order_by('-created_at')
+                return Service.objects.filter(store=store).select_related('store', 'category').order_by('-created_at')
             except Store.DoesNotExist:
                 return Service.objects.none()
         
         # Otherwise show all active services (Customer view)
-        return Service.objects.filter(is_active=True).order_by('-created_at')
+        return Service.objects.filter(is_active=True).select_related('store', 'category').order_by('-created_at')
 
     def perform_create(self, serializer):
         store = Store.objects.get(owner=self.request.user)
