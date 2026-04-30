@@ -5,7 +5,7 @@ from .models import Service, Booking
 class ServiceSerializer(serializers.ModelSerializer):
     image_url = serializers.SerializerMethodField()
     bookings_count = serializers.SerializerMethodField()
-    category_name = serializers.CharField(source='category.name', read_only=True)
+    category_name = serializers.ReadOnlyField(source='category.name')
 
     class Meta:
         model = Service
@@ -26,10 +26,10 @@ class ServiceSerializer(serializers.ModelSerializer):
 
 
 class BookingSerializer(serializers.ModelSerializer):
-    service_name = serializers.CharField(source='service.name', read_only=True)
-    service_duration = serializers.IntegerField(source='service.duration_minutes', read_only=True)
-    store_name = serializers.CharField(source='store.name', read_only=True)
-    store_phone = serializers.CharField(source='store.phone', read_only=True)
+    service_name = serializers.ReadOnlyField(source='service.name')
+    service_duration = serializers.ReadOnlyField(source='service.duration_minutes')
+    store_name = serializers.ReadOnlyField(source='store.name')
+    store_phone = serializers.ReadOnlyField(source='store.phone')
     status_history = serializers.SerializerMethodField()
 
     class Meta:

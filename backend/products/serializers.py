@@ -19,10 +19,10 @@ class CategorySerializer(serializers.ModelSerializer):
 
 
 class ProductSerializer(serializers.ModelSerializer):
-    store_name = serializers.CharField(source='store.name', read_only=True, default='Unknown Store')
-    store_name_ta = serializers.CharField(source='store.name_ta', read_only=True, default='')
-    category_name = serializers.CharField(source='category.name', read_only=True, default='General')
-    category_name_ta = serializers.CharField(source='category.name_ta', read_only=True, default='')
+    store_name = serializers.ReadOnlyField(source='store.name')
+    store_name_ta = serializers.ReadOnlyField(source='store.name_ta')
+    category_name = serializers.ReadOnlyField(source='category.name')
+    category_name_ta = serializers.ReadOnlyField(source='category.name_ta')
 
     # These are set automatically server-side; not required from frontend
     store = serializers.PrimaryKeyRelatedField(read_only=True)
