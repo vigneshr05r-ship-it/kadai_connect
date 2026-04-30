@@ -1476,7 +1476,7 @@ export default function ShopkeeperDashboard() {
                     {(nextFestival?.predicted_products || insights.demands).length > 0 && (
                       <>
                         <div style={{ fontSize: '.65rem', fontWeight: 800, color: 'var(--gold)', textTransform: 'uppercase', marginBottom: 10, letterSpacing: '.5px' }}>📦 {isTa ? 'தயாரிப்பு தேவைகள்' : 'Product Demands'}</div>
-                        {(nextFestival?.predicted_products || insights.demands).slice(0, 4).map((item, i) => {
+                        {(Array.isArray(nextFestival?.predicted_products || insights.demands) ? (nextFestival?.predicted_products || insights.demands) : []).slice(0, 4).map((item, i) => {
                           const label = typeof item === 'string' ? item : item.label;
                           const pct = typeof item === 'string' ? (85 - i * 8) : item.pct;
                           const color = 'linear-gradient(to right,var(--gold),var(--gold-light))';
@@ -1581,7 +1581,7 @@ export default function ShopkeeperDashboard() {
                   <div style={{ ...S.panel, marginBottom: 24 }}>
                     <div style={S.panelTitle}>🛍️ {isTa ? 'சிறந்த தயாரிப்புகள்' : 'Top Products'}</div>
                     <ItemGrid 
-                      items={products.slice(0, 4)} 
+                      items={(Array.isArray(products) ? products : []).slice(0, 4)} 
                       type="product"
                       onEdit={(p) => { setUploadMode('product'); setEditItem(p); setShowUpload(true); }} 
                       onDelete={deleteProduct} 
@@ -1595,7 +1595,7 @@ export default function ShopkeeperDashboard() {
                   <div style={S.panel}>
                     <div style={S.panelTitle}>🧵 {isTa ? 'சிறந்த சேவைகள்' : 'Top Services'}</div>
                     <ItemGrid 
-                      items={services.slice(0, 4)} 
+                      items={(Array.isArray(services) ? services : []).slice(0, 4)} 
                       type="service"
                       onEdit={(srv) => { 
                         setUploadMode('service'); 
