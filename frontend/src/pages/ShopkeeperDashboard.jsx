@@ -280,7 +280,7 @@ function UploadModal({ onClose, onSave, editItem, mode = 'product', showToast })
     await onSave(payload);
   };
 
-  const currentMain = categories.find(c => c.id == mainCatId);
+  const currentMain = categories?.find?.(c => c.id == mainCatId);
   const subcategories = currentMain?.subcategories || [];
 
   const canGoNext = mainCatId === 'others' 
@@ -335,7 +335,7 @@ function UploadModal({ onClose, onSave, editItem, mode = 'product', showToast })
                 }
               }}>
                 <option value="">{isTa ? '-- தேர்வு செய்க --' : '-- Select --'}</option>
-                {categories.filter(c => isNaN(c.name)).map(c => <option key={c.id} value={c.id}>{isTa ? (c.name_ta || c.name) : c.name} {c.icon}</option>)}
+                {categories?.filter?.(c => isNaN(c.name)).map(c => <option key={c.id} value={c.id}>{isTa ? (c.name_ta || c.name) : c.name} {c.icon}</option>)}
                 <option value="others" style={{ fontStyle: 'italic', color: 'var(--gold)' }}>✨ {isTa ? 'மற்றவை / புதிய வகை' : 'Others / Add New'}</option>
               </select>
             </div>
@@ -344,7 +344,7 @@ function UploadModal({ onClose, onSave, editItem, mode = 'product', showToast })
               <div style={{ marginBottom: 20 }}>
                 <label style={{ display: 'block', fontSize: '.7rem', letterSpacing: '.8px', textTransform: 'uppercase', color: 'var(--brown-mid)', marginBottom: 6 }}>{isTa ? 'துணை வகை' : 'Subcategory'}</label>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                  {subcategories.map(s => (
+                  {subcategories?.map?.(s => (
                     <button key={s.id} onClick={() => { setSubCatId(s.id); setIsOther(false); }} style={{ padding: '8px', borderRadius: 6, border: `1.5px solid ${subCatId == s.id && !isOther ? 'var(--gold)' : 'var(--parchment)'}`, background: subCatId == s.id && !isOther ? 'var(--gold-pale)' : 'white', fontSize: '.75rem', textAlign: 'left', fontWeight: 600 }}>
                       {isTa ? (s.name_ta || s.name) : s.name}
                     </button>
@@ -413,7 +413,7 @@ function UploadModal({ onClose, onSave, editItem, mode = 'product', showToast })
           <div style={{ fontSize: '.8rem', color: 'var(--brown-mid)', fontStyle: 'italic', marginBottom: 18 }}>
             📍 {isTa ? 'வகை' : 'Category'}: <span style={{ color: 'var(--gold)', fontWeight: 800 }}>
               {currentMain?.name || (mainCatId === 'others' ? newCatName : '')} 
-              {(subCatId && subCatId !== 'others') ? ` › ${subcategories.find(s => s.id == subCatId)?.name}` : (isOther && subCatId === 'others' ? ` › ${newCatName}` : '')}
+              {(subCatId && subCatId !== 'others') ? ` › ${subcategories?.find?.(s => s.id == subCatId)?.name}` : (isOther && subCatId === 'others' ? ` › ${newCatName}` : '')}
             </span>
           </div>
         )}
@@ -558,7 +558,7 @@ function MarketingHub({ products, services, storeData, isTa, apiFetch, showToast
     let triggeredShare = false;
     const pool = targetType === 'product' ? products : services;
     if (mode === 'single' && selectedId) {
-      const item = pool.find(i => i.id === parseInt(selectedId));
+      const item = pool?.find?.(i => i.id === parseInt(selectedId));
       if (item && (item.image || item.image_url)) {
         const imgUrl = item.image || item.image_url;
         try {
@@ -608,7 +608,7 @@ function MarketingHub({ products, services, storeData, isTa, apiFetch, showToast
     const pool = targetType === 'product' ? products : services;
 
     if (mode === 'single') {
-      const item = pool.find(i => i.id === parseInt(selectedId));
+      const item = pool?.find?.(i => i.id === parseInt(selectedId));
       if (!item) { showToast(isTa ? (targetType === 'product' ? 'முதலில் ஒரு பொருளைத் தேர்ந்தெடுக்கவும்' : 'முதலில் ஒரு சேவையைத் தேர்ந்தெடுக்கவும்') : `Select a ${targetType} first`); setLoading(false); return; }
       itemNames = [item.name];
     } else if (mode === 'recent') {
@@ -1515,7 +1515,7 @@ export default function ShopkeeperDashboard() {
                     <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '.8rem' }}>
                       <thead><tr>{(isTa ? ['ஆர்டர் ஐடி','வாடிக்கையாளர்','தயாரிப்பு','தொகை','நேரம்','நிலை'] : ['Order ID','Customer','Product','Amount','Time','Status']).map(h => <th key={h} style={{ textAlign: 'left', padding: '12px 10px', background: 'var(--brown-deep)', color: 'var(--gold-light)', fontFamily: 'var(--font-d)', fontSize: '.75rem', letterSpacing: '.5px' }}>{h}</th>)}</tr></thead>
                       <tbody>
-                        {dbOrders.length > 0 ? dbOrders.slice(0, 10).map(o => (
+                        {dbOrders?.length > 0 ? dbOrders?.slice?.(0, 10).map(o => (
                           <tr key={o.id}>
                             <td style={{ padding: '12px 10px', borderBottom: '1px solid var(--parchment)' }}>#ORD-{o.id}</td>
                             <td style={{ padding: '12px 10px', borderBottom: '1px solid var(--parchment)' }}>{o.customer_name || 'Guest'}</td>
@@ -1726,9 +1726,9 @@ export default function ShopkeeperDashboard() {
               
               <div className="stats-grid" style={{ marginBottom: 24 }}>
                 {[
-                  { label: isTa ? 'மொத்த வருவாய்' : 'Total Revenue', value: '₹' + dbOrders.filter(o => o.status === 'delivered').reduce((s, o) => s + (Number(o.total_price) - Number(o.delivery_charge)), 0).toLocaleString(), icon: '💰' },
-                  { label: isTa ? 'டெலிவரி செய்யப்பட்டவை' : 'Delivered Orders', value: dbOrders.filter(o => o.status === 'delivered').length, icon: '✅' },
-                  { label: isTa ? 'நிலுவையில் உள்ளவை' : 'Pending Payout', value: '₹' + dbOrders.filter(o => o.status !== 'delivered' && o.status !== 'cancelled').reduce((s, o) => s + (Number(o.total_price) - Number(o.delivery_charge)), 0).toLocaleString(), icon: '⏳' },
+                  { label: isTa ? 'மொத்த வருவாய்' : 'Total Revenue', value: '₹' + (dbOrders?.filter?.(o => o.status === 'delivered').reduce((s, o) => s + (Number(o.total_price) - Number(o.delivery_charge)), 0) || 0).toLocaleString(), icon: '💰' },
+                  { label: isTa ? 'டெலிவரி செய்யப்பட்டவை' : 'Delivered Orders', value: dbOrders?.filter?.(o => o.status === 'delivered').length || 0, icon: '✅' },
+                  { label: isTa ? 'நிலுவையில் உள்ளவை' : 'Pending Payout', value: '₹' + (dbOrders?.filter?.(o => o.status !== 'delivered' && o.status !== 'cancelled').reduce((s, o) => s + (Number(o.total_price) - Number(o.delivery_charge)), 0) || 0).toLocaleString(), icon: '⏳' },
                 ].map((s, i) => (
                   <div key={i} style={{ ...S.panel, padding: '20px', display: 'flex', alignItems: 'center', gap: 15, marginBottom: 0 }}>
                     <div style={{ fontSize: '2rem' }}>{s.icon}</div>
@@ -1755,7 +1755,7 @@ export default function ShopkeeperDashboard() {
                       </tr>
                     </thead>
                     <tbody>
-                      {dbOrders.filter(o => o.status === 'delivered').map(o => (
+                      {dbOrders?.filter?.(o => o.status === 'delivered').map(o => (
                         <tr key={o.id} style={{ borderBottom: '1px solid var(--parchment)' }}>
                           <td style={{ padding: '12px 10px' }}>{new Date(o.created_at).toLocaleDateString()}</td>
                           <td style={{ padding: '12px 10px', fontWeight: 700 }}>#ORD-{o.id}</td>
@@ -1786,7 +1786,7 @@ export default function ShopkeeperDashboard() {
               <div style={S.panel}>
                 <div style={S.panelTitle}>📦 {isTa ? 'செயலில் உள்ள டெலிவரிகள்' : 'Active Deliveries'}</div>
                 {(dbOrders.filter(o => ['ready', 'assigned', 'picked_up', 'out_for_delivery'].includes(o.status)).length > 0) ? (
-                  dbOrders.filter(o => ['ready', 'assigned', 'picked_up', 'out_for_delivery'].includes(o.status)).map(d => {
+                  dbOrders?.filter?.(o => ['ready', 'assigned', 'picked_up', 'out_for_delivery'].includes(o.status)).map(d => {
                     const statusConfig = {
                       'ready': { bg: '#cce5ff', col: '#004085', icon: '🏪' },
                       'assigned': { bg: '#e2e3e5', col: '#383d41', icon: '🤝' },

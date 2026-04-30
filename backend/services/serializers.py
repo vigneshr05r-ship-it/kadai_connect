@@ -5,11 +5,12 @@ from .models import Service, Booking
 class ServiceSerializer(serializers.ModelSerializer):
     image_url = serializers.SerializerMethodField()
     bookings_count = serializers.SerializerMethodField()
+    category_name = serializers.CharField(source='category.name', read_only=True)
 
     class Meta:
         model = Service
         fields = [
-            'id', 'store', 'name', 'name_ta', 'description', 'description_ta',
+            'id', 'store', 'category', 'category_name', 'name', 'name_ta', 'description', 'description_ta',
             'price', 'duration_minutes', 'image', 'image_url', 'bookings_count', 'is_active', 'created_at'
         ]
         read_only_fields = ['id', 'created_at', 'store', 'bookings_count']
