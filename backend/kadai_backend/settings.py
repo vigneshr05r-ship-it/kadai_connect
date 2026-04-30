@@ -119,6 +119,11 @@ CORS_ALLOW_ALL_ORIGINS = DEBUG
 if not DEBUG:
     _cors_origins = os.environ.get('CORS_ALLOWED_ORIGINS', '')
     CORS_ALLOWED_ORIGINS = [o.strip() for o in _cors_origins.split(',') if o.strip()]
+    # Also allow all Vercel preview deployment URLs automatically
+    CORS_ALLOWED_ORIGIN_REGEXES = [
+        r'^https://kadai-connect.*\.vercel\.app$',
+        r'^https://vigneshr05r-ship-it.*\.vercel\.app$',
+    ]
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
