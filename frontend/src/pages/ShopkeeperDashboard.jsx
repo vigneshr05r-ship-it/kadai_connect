@@ -99,6 +99,13 @@ function UploadModal({ onClose, onSave, editItem, mode = 'product', showToast })
   const [voiceError, setVoiceError] = useState('');
   const [vTranscript, setVTranscript] = useState('');
 
+  const getImageUrl = (url) => {
+    if (!url) return null;
+    if (url.startsWith('http') || url.startsWith('blob:') || url.startsWith('data:')) return url;
+    const baseUrl = import.meta.env.VITE_API_URL || '';
+    return `${baseUrl.replace(/\/$/, '')}${url.startsWith('/') ? '' : '/'}${url}`;
+  };
+
   const isService = uploadType === 'service';
   const isTa = i18n.language.startsWith('ta');
 
@@ -820,6 +827,13 @@ function MarketingHub({ products, services, storeData, isTa, apiFetch, showToast
 export default function ShopkeeperDashboard() {
   const { t, i18n } = useTranslation();
   const isTa = i18n.language.startsWith('ta');
+
+  const getImageUrl = (url) => {
+    if (!url) return null;
+    if (url.startsWith('http') || url.startsWith('blob:') || url.startsWith('data:')) return url;
+    const baseUrl = import.meta.env.VITE_API_URL || '';
+    return `${baseUrl.replace(/\/$/, '')}${url.startsWith('/') ? '' : '/'}${url}`;
+  };
   const { user, logout, apiFetch, updateUser } = useAuth();
   const navigate = useNavigate();
   const [section, setSection] = useState('dashboard');
@@ -1978,7 +1992,7 @@ export default function ShopkeeperDashboard() {
                     {/* Logo Upload */}
                     <div style={{ textAlign: 'center' }}>
                       <div style={{ width: 80, height: 80, borderRadius: 12, border: '2px solid var(--gold)', background: 'var(--cream)', overflow: 'hidden', marginBottom: 8, position: 'relative' }}>
-                        {storeEdit.logo ? <img src={URL.createObjectURL(storeEdit.logo)} style={{ width: '100%', height: '100%', objectFit: 'cover' }}/> : (storeData?.logo ? <img src={storeData.logo} style={{ width: '100%', height: '100%', objectFit: 'cover' }}/> : <div style={{ height: '100%', display: 'grid', placeItems: 'center', fontSize: '2rem' }}>🏪</div>)}
+                        {storeEdit.logo ? <img src={URL.createObjectURL(storeEdit.logo)} style={{ width: '100%', height: '100%', objectFit: 'cover' }}/> : (storeData?.logo ? <img src={getImageUrl(storeData.logo)} style={{ width: '100%', height: '100%', objectFit: 'cover' }}/> : <div style={{ height: '100%', display: 'grid', placeItems: 'center', fontSize: '2rem' }}>🏪</div>)}
                       </div>
                       <label style={{ ...S.btnPrimary, padding: '5px 10px', fontSize: '.65rem', display: 'inline-flex', opacity: isEditingProfile ? 1 : 0.5 }}>
                         {isTa ? 'லோகோ' : 'Logo'} <input type="file" hidden accept="image/*" disabled={!isEditingProfile} onChange={e => setStoreEdit({...storeEdit, logo: e.target.files[0]})}/>
@@ -1986,7 +2000,7 @@ export default function ShopkeeperDashboard() {
                     </div>
                     {/* Banner Upload */}
                     <div style={{ flex: 1, minWidth: 260 }}>
-                      <div style={{ height: 140, borderRadius: 12, border: '2px solid var(--parchment)', background: storeEdit.banner ? `url(${URL.createObjectURL(storeEdit.banner)}) center/cover no-repeat` : (storeData?.banner ? `url(${storeData.banner}) center/cover no-repeat` : 'var(--brown-deep)'), marginBottom: 8, opacity: isEditingProfile ? 1 : 0.6, boxShadow: 'inset 0 0 40px rgba(0,0,0,0.2)' }}></div>
+                      <div style={{ height: 140, borderRadius: 12, border: '2px solid var(--parchment)', background: storeEdit.banner ? `url(${URL.createObjectURL(storeEdit.banner)}) center/cover no-repeat` : (storeData?.banner ? `url(${getImageUrl(storeData.banner)}) center/cover no-repeat` : 'var(--brown-deep)'), marginBottom: 8, opacity: isEditingProfile ? 1 : 0.6, boxShadow: 'inset 0 0 40px rgba(0,0,0,0.2)' }}></div>
                       <label style={{ ...S.btnPrimary, padding: '5px 10px', fontSize: '.65rem', display: 'inline-flex', opacity: isEditingProfile ? 1 : 0.5 }}>
                         {isTa ? 'பேனர்' : 'Banner'} <input type="file" hidden accept="image/*" disabled={!isEditingProfile} onChange={e => setStoreEdit({...storeEdit, banner: e.target.files[0]})}/>
                       </label>
@@ -2105,7 +2119,7 @@ export default function ShopkeeperDashboard() {
             </div>
             
             {/* Status Flow */}
-            <div style={{ background: 'var(--cream-dark)', padding: '15px 20px', borderBottom: '1px solid var(--parchment)', display: 'flex', justifyContent: 'space-between' }}>
+            <div style={{ background: 'var(--cream_dark)', padding: '15px 20px', borderBottom: '1px solid var(--parchment)', display: 'flex', justifyContent: 'space-between' }}>
               {['ready', 'assigned', 'picked_up', 'out_for_delivery', 'delivered'].map((s, i, arr) => {
                 const currentIdx = arr.indexOf(trackingOrder.status);
                 const active = i <= currentIdx;
@@ -2191,7 +2205,7 @@ export default function ShopkeeperDashboard() {
 
             <div style={{ flex: 1, background: 'var(--cream-dark)', position: 'relative', overflow: 'hidden', height: window.innerWidth < 768 ? 300 : 'auto' }}>
               {(selectedProduct.image_url || selectedProduct.image) ? (
-                <img src={selectedProduct.image_url || selectedProduct.image} alt={selectedProduct.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                <img src={getImageUrl(selectedProduct.image_url || selectedProduct.image)} alt={selectedProduct.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
               ) : (
                 <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '5rem' }}>
                   {selectedProduct.emoji || '📦'}
@@ -2252,8 +2266,15 @@ export default function ShopkeeperDashboard() {
 }
 
 function ProductGrid({ products, onEdit, onDelete, onAdd, onSelect }) {
-  const { i18n } = useTranslation();
+  const navigate = useNavigate();
   const isTa = i18n.language.startsWith('ta');
+
+  const getImageUrl = (url) => {
+    if (!url) return null;
+    if (url.startsWith('http') || url.startsWith('blob:') || url.startsWith('data:')) return url;
+    const baseUrl = import.meta.env.VITE_API_URL || '';
+    return `${baseUrl.replace(/\/$/, '')}${url.startsWith('/') ? '' : '/'}${url}`;
+  };
   return (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(200px,1fr))', gap: 16, marginTop: 8 }}>
       {products.map(p => (
@@ -2261,7 +2282,7 @@ function ProductGrid({ products, onEdit, onDelete, onAdd, onSelect }) {
           onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.boxShadow = '4px 8px 20px var(--shadow)'; }}
           onMouseLeave={e => { e.currentTarget.style.transform = ''; e.currentTarget.style.boxShadow = '2px 3px 10px var(--shadow)'; }}>
           <div onClick={() => onSelect && onSelect(p)} style={{ height: 160, background: 'var(--cream-dark)', display: 'flex', alignItems: 'center', justifyContent: 'center', borderBottom: '1px solid var(--parchment)', fontSize: '2.8rem', overflow: 'hidden', cursor: 'pointer' }}>
-            {p.image ? <img src={p.image} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={e => { e.target.style.display = 'none'; }}/> : (p.imgUrl ? <img src={p.imgUrl} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={e => { e.target.style.display = 'none'; }}/> : p.emoji || (p.category === 'Services' ? '✂️' : '📦'))}
+            {p.image ? <img src={getImageUrl(p.image)} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={e => { e.target.style.display = 'none'; }}/> : (p.imgUrl ? <img src={getImageUrl(p.imgUrl)} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={e => { e.target.style.display = 'none'; }}/> : p.emoji || (p.category === 'Services' ? '✂️' : '📦'))}
           </div>
           <div style={{ padding: '10px 12px' }}>
             <div onClick={() => onSelect && onSelect(p)} style={{ cursor: 'pointer' }}>
