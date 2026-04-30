@@ -77,9 +77,9 @@ export default function NotificationPanel({ isOpen, onClose }) {
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <Bell size={20} color="var(--gold)" />
             <h3 style={{ fontFamily: 'var(--font-d)', fontSize: '1.1rem', fontWeight: 900, margin: 0 }}>{isTa ? 'அறிவிப்புகள்' : 'Notifications'}</h3>
-            {notifications.filter(n => !n.is_read).length > 0 && (
+            {notifications?.filter?.(n => !n.is_read).length > 0 && (
               <span style={{ background: 'var(--gold)', color: 'var(--brown-deep)', fontSize: '0.65rem', fontWeight: 900, padding: '2px 8px', borderRadius: 20 }}>
-                {notifications.filter(n => !n.is_read).length}
+                {notifications?.filter?.(n => !n.is_read).length}
               </span>
             )}
           </div>

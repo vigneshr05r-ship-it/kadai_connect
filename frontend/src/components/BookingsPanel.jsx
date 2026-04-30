@@ -63,7 +63,7 @@ export default function BookingsPanel({ apiFetch, isTa, showToast }) {
     } catch (e) { showToast('❌ Error updating status'); }
   };
 
-  const displayed = filter === 'All' ? bookings : bookings.filter(b => b.status === filter);
+  const displayed = filter === 'All' ? (bookings || []) : (bookings?.filter?.(b => b.status === filter) || []);
 
   return (
     <div style={{ maxWidth: 900 }}>
@@ -94,7 +94,7 @@ export default function BookingsPanel({ apiFetch, isTa, showToast }) {
       {/* Stats Row */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12, marginBottom: 24 }}>
         {STATUSES.map(s => {
-          const count = bookings.filter(b => b.status === s).length;
+          const count = bookings?.filter?.(b => b.status === s).length || 0;
           const cfg = STATUS_COLOR[s];
           return (
             <div key={s} style={{ ...S.panel, textAlign: 'center', padding: '14px 10px', background: cfg.bg, border: 'none' }}>
@@ -117,7 +117,7 @@ export default function BookingsPanel({ apiFetch, isTa, showToast }) {
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-          {displayed.map(b => (
+          {displayed.map?.(b => (
             <div key={b.id} style={{ ...S.panel, display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
               {/* Left Icon */}
               <div style={{ width: 48, height: 48, borderRadius: 10, background: 'var(--cream-dark)', display: 'grid', placeItems: 'center', fontSize: '1.4rem', flexShrink: 0 }}>📅</div>
