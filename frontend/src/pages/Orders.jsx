@@ -116,7 +116,7 @@ export default function Orders() {
 
         {/* Mixed History List */}
         <div className="space-y-6">
-          {[...orders, ...bookings.map(b => ({ ...b, isBooking: true }))]
+          {[...(Array.isArray(orders) ? orders : []), ...(Array.isArray(bookings) ? bookings.map(b => ({ ...b, isBooking: true })) : [])]
             .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
             .map((item) => {
               const s = getStatusConfig(item.status);

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTranslation } from 'react-i18next';
-import { User, Phone, MapPin, Map } from 'lucide-react';
+import { User, Phone, MapPin, Map, ArrowLeft } from 'lucide-react';
 import MainLayout from '../components/MainLayout';
 
 const Toast = ({ msg, visible }) => (
