@@ -14,9 +14,19 @@ export default function ItemGrid({ items, type = 'product', onSelect, onEdit, on
     <div className="compact-item-grid">
       {items.map(item => {
         const inWishlist = wishlist?.some(w => w.id === item.id);
-        const imageUrl = item.image_url || item.image || (type === 'product' 
-          ? 'https://images.unsplash.com/photo-1542838132-92c53300491e?w=400' 
-          : 'https://images.unsplash.com/photo-1521791136064-7986c2920216?w=400');
+        let imageUrl = item.image_url || item.image;
+        
+        // If image is a relative path from the backend, prefix it with the API URL
+        if (imageUrl && imageUrl.startsWith('/media/')) {
+          const baseUrl = import.meta.env.VITE_API_URL || '';
+          imageUrl = `${baseUrl}${imageUrl}`;
+        }
+
+        if (!imageUrl) {
+          imageUrl = type === 'product' 
+            ? 'https://images.unsplash.com/photo-1542838132-92c53300491e?w=400' 
+            : 'https://images.unsplash.com/photo-1521791136064-7986c2920216?w=400';
+        }
         
         return (
           <div key={item.id} className="compact-card">
