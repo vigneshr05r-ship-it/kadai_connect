@@ -17,7 +17,7 @@ export default function ItemGrid({ items, type = 'product', onSelect, onEdit, on
         let imageUrl = item.image_url || item.image;
         
         // If image is a relative path from the backend, prefix it with the API URL
-        if (imageUrl && imageUrl.startsWith('/media/')) {
+        if (typeof imageUrl === 'string' && imageUrl.startsWith('/media/')) {
           const baseUrl = import.meta.env.VITE_API_URL || '';
           imageUrl = `${baseUrl}${imageUrl}`;
         }
