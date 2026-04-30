@@ -60,6 +60,13 @@ class OrderSerializer(serializers.ModelSerializer):
         # 2. Fallback to customer profile lat
         if obj.customer and obj.customer.latitude is not None:
             return float(obj.customer.latitude)
+        # 3. Last resort: Real-time geocode of the order address
+        if obj.address:
+            try:
+                from utils.geocoding import geocode_address
+                lat, lng = geocode_address(obj.address)
+                if lat: return float(lat)
+            except: pass
         return None
 
     def get_customer_lng(self, obj):
@@ -69,6 +76,13 @@ class OrderSerializer(serializers.ModelSerializer):
         # 2. Fallback to customer profile lng
         if obj.customer and obj.customer.longitude is not None:
             return float(obj.customer.longitude)
+        # 3. Last resort: Real-time geocode of the order address
+        if obj.address:
+            try:
+                from utils.geocoding import geocode_address
+                lat, lng = geocode_address(obj.address)
+                if lng: return float(lng)
+            except: pass
         return None
 
     def get_delivery_info(self, obj):
