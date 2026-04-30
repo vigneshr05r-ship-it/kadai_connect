@@ -1,8 +1,8 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
-// Fix Leaflet's default icon paths
+// Fix Leaflet default icon
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
@@ -10,171 +10,145 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
 });
 
-const createCustomIcon = (color) => {
-  return new L.Icon({
-    iconUrl: `https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-${color}.png`,
-    shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
-    iconSize: [25, 41],
-    iconAnchor: [12, 41],
-    popupAnchor: [1, -34],
-    shadowSize: [41, 41]
-  });
-};
-
-const greenIcon = createCustomIcon('green');
-const redIcon = createCustomIcon('red');
-const blueIcon = createCustomIcon('blue');
-
-const bikeIconHtml = `
-  <div class="bike-marker">
-    <div class="bike-rider">🛵</div>
-    <div class="bike-shadow"></div>
-  </div>
-`;
-
-const bikeIcon = L.divIcon({
-  html: bikeIconHtml,
-  className: 'animated-bike-icon',
-  iconSize: [40, 40],
-  iconAnchor: [20, 35],
+// Self-contained emoji icons — no external URLs, never broken
+const shopIcon = L.divIcon({
+  html: `<div style="font-size:28px;line-height:1;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.45))">🏪</div>`,
+  className: '',
+  iconSize: [32, 32],
+  iconAnchor: [16, 28],
+  popupAnchor: [0, -28],
 });
 
-export default function DeliveryMap({ pickupCoords, deliveryCoords, currentCoords, onRouteUpdate }) {
+const homeIcon = L.divIcon({
+  html: `<div style="font-size:28px;line-height:1;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.45))">🏠</div>`,
+  className: '',
+  iconSize: [32, 32],
+  iconAnchor: [16, 28],
+  popupAnchor: [0, -28],
+});
+
+const bikeIcon = L.divIcon({
+  html: `<div style="font-size:32px;line-height:1;filter:drop-shadow(0 2px 6px rgba(0,0,0,0.5))">🛵</div>`,
+  className: '',
+  iconSize: [36, 36],
+  iconAnchor: [18, 32],
+  popupAnchor: [0, -32],
+});
+
+// District-center fallbacks for Tamil Nadu
+const DISTRICT_CENTERS = {
+  'Chennai':      { lat: 13.0827, lng: 80.2707 },
+  'Coimbatore':   { lat: 11.0168, lng: 76.9558 },
+  'Madurai':      { lat: 9.9252,  lng: 78.1198 },
+  'Tambaram':     { lat: 12.9249, lng: 80.1000 },
+  'Chengalpattu': { lat: 12.6920, lng: 79.9762 },
+  'Vandalur':     { lat: 12.8921, lng: 80.0830 },
+  'Maraimalai Nagar': { lat: 12.7958, lng: 80.0269 },
+  'default':      { lat: 12.9229, lng: 80.1275 },
+};
+
+function getDistrictCenter(address) {
+  if (!address) return DISTRICT_CENTERS.default;
+  const lower = address.toLowerCase();
+  for (const [key, coords] of Object.entries(DISTRICT_CENTERS)) {
+    if (key !== 'default' && lower.includes(key.toLowerCase())) return coords;
+  }
+  return DISTRICT_CENTERS.default;
+}
+
+export default function DeliveryMap({ pickupCoords, deliveryCoords, currentCoords, orderAddress, onRouteUpdate }) {
   const mapRef = useRef(null);
   const mapInstance = useRef(null);
   const markersRef = useRef({});
   const routeRef = useRef(null);
-  const markerRefs = useRef([]);
 
-  // Initialize Map
+  // Always resolve a destination — use geocoded coords or address-based fallback
+  const resolvedDelivery = (deliveryCoords?.lat && deliveryCoords?.lng)
+    ? deliveryCoords
+    : getDistrictCenter(orderAddress);
+
+  // Initialize map once
   useEffect(() => {
     if (!mapRef.current || mapInstance.current) return;
-
-    const center = currentCoords ? [currentCoords.lat, currentCoords.lng] : [12.9229, 80.1275];
-    mapInstance.current = L.map(mapRef.current).setView(center, 13);
-
+    const center = pickupCoords?.lat
+      ? [pickupCoords.lat, pickupCoords.lng]
+      : [resolvedDelivery.lat, resolvedDelivery.lng];
+    mapInstance.current = L.map(mapRef.current, { zoomControl: true }).setView(center, 13);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '&copy; OpenStreetMap contributors'
+      attribution: '© OpenStreetMap contributors',
+      maxZoom: 19,
     }).addTo(mapInstance.current);
-
     return () => {
-      if (mapInstance.current) {
-        mapInstance.current.remove();
-        mapInstance.current = null;
-      }
+      if (mapInstance.current) { mapInstance.current.remove(); mapInstance.current = null; }
     };
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Update Markers
+  // Update markers and route line
   useEffect(() => {
-    if (!mapInstance.current) return;
+    const map = mapInstance.current;
+    if (!map) return;
 
-    const updateMarker = (key, coords, icon, label) => {
-      if (markersRef.current[key]) {
-        mapInstance.current.removeLayer(markersRef.current[key]);
-      }
+    const setMarker = (key, coords, icon, label) => {
+      if (markersRef.current[key]) { map.removeLayer(markersRef.current[key]); delete markersRef.current[key]; }
       if (coords?.lat && coords?.lng) {
-        markersRef.current[key] = L.marker([coords.lat, coords.lng], { icon, zIndexOffset: key === 'driver' ? 1000 : 0 })
-          .addTo(mapInstance.current)
+        markersRef.current[key] = L.marker([coords.lat, coords.lng], { icon })
+          .addTo(map)
           .bindPopup(`<strong>${label}</strong>`);
       }
     };
 
-    updateMarker('pickup', pickupCoords, greenIcon, 'Pickup');
-    updateMarker('delivery', deliveryCoords, redIcon, 'Drop Location');
-    
-    // Smart Bike Positioning: If driver pos is missing but status is picked_up, show at store
-    let finalDriverPos = currentCoords;
-    if ((!finalDriverPos || !finalDriverPos.lat) && pickupCoords?.lat) {
-        finalDriverPos = pickupCoords;
-    }
-    
-    if (finalDriverPos?.lat && finalDriverPos?.lng) {
-        updateMarker('driver', finalDriverPos, bikeIcon, 'Delivery Partner');
-    }
+    // Place all three markers
+    setMarker('pickup', pickupCoords, shopIcon, '🏪 Shop (Pickup)');
+    setMarker('delivery', resolvedDelivery, homeIcon, '🏠 Your Home');
+    const driverPos = (currentCoords?.lat && currentCoords?.lng) ? currentCoords : pickupCoords;
+    setMarker('driver', driverPos, bikeIcon, '🛵 Delivery Partner');
 
-    // Fit bounds if we have multiple points
-    const all = [pickupCoords, deliveryCoords, finalDriverPos].filter(c => c?.lat && c?.lng);
-    if (all.length >= 2 && mapInstance.current) {
-      const bounds = L.latLngBounds(all.map(c => [c.lat, c.lng]));
-      try {
-        mapInstance.current.invalidateSize();
-        mapInstance.current.fitBounds(bounds, { padding: [50, 50], animate: false });
-      } catch (e) {
-        console.warn("Leaflet fitBounds error caught", e);
-      }
-    }
-  }, [pickupCoords?.lat, pickupCoords?.lng, deliveryCoords?.lat, deliveryCoords?.lng, currentCoords?.lat, currentCoords?.lng]);
-
-  // Update Route
-  useEffect(() => {
-    if (!mapInstance.current) return;
-
-    const fetchRoute = async () => {
-      if (!deliveryCoords?.lat) return;
-      
-      const waypoints = [];
-      const isValid = (c) => c?.lat && c?.lng && Math.abs(c.lat) > 0.01;
-      
-      if (isValid(currentCoords)) waypoints.push(`${currentCoords.lng},${currentCoords.lat}`);
-      if (isValid(pickupCoords)) waypoints.push(`${pickupCoords.lng},${pickupCoords.lat}`);
-      if (isValid(deliveryCoords)) waypoints.push(`${deliveryCoords.lng},${deliveryCoords.lat}`);
-
-      if (waypoints.length < 2) {
-        console.warn("Not enough valid waypoints for routing", waypoints);
-        return;
-      }
-
-      try {
-        const url = `https://router.project-osrm.org/route/v1/driving/${waypoints.join(';')}?overview=full&geometries=geojson`;
-        console.log("Fetching route:", url);
-        const res = await fetch(url);
-        const data = await res.json();
-
-        if (!mapInstance.current) return;
-
-        if (data.code === 'Ok' && data.routes.length > 0) {
-          const route = data.routes[0];
-          const path = route.geometry.coordinates.map(coord => [coord[1], coord[0]]);
-
-          if (routeRef.current && mapInstance.current.hasLayer(routeRef.current)) {
-            mapInstance.current.removeLayer(routeRef.current);
-          }
-          routeRef.current = L.polyline(path, { color: 'var(--gold)', weight: 6, opacity: 0.8, lineJoin: 'round' }).addTo(mapInstance.current);
-
-          if (onRouteUpdate) {
-            onRouteUpdate({
-              distance: (route.distance / 1000).toFixed(1),
-              duration: Math.round(route.duration / 60)
+    // Draw route between shop and home
+    if (routeRef.current && map.hasLayer(routeRef.current)) map.removeLayer(routeRef.current);
+    const points = [pickupCoords, resolvedDelivery].filter(c => c?.lat && c?.lng);
+    if (points.length >= 2) {
+      const wp = points.map(c => `${c.lng},${c.lat}`).join(';');
+      fetch(`https://router.project-osrm.org/route/v1/driving/${wp}?overview=full&geometries=geojson`)
+        .then(r => r.json())
+        .then(data => {
+          if (!mapInstance.current) return;
+          if (data.code === 'Ok' && data.routes?.[0]) {
+            const path = data.routes[0].geometry.coordinates.map(([lng, lat]) => [lat, lng]);
+            routeRef.current = L.polyline(path, { color: '#C9921A', weight: 5, opacity: 0.9 }).addTo(mapInstance.current);
+            if (onRouteUpdate) onRouteUpdate({
+              distance: (data.routes[0].distance / 1000).toFixed(1),
+              duration: Math.round(data.routes[0].duration / 60),
             });
-          }
-        } else {
-          throw new Error("No OSRM route found");
-        }
-      } catch (err) {
-        console.error("OSRM Error, falling back to straight line", err);
-        // Fallback: Straight dashed line
-        const fallbackPath = [];
-        if (isValid(currentCoords)) fallbackPath.push([currentCoords.lat, currentCoords.lng]);
-        if (isValid(pickupCoords)) fallbackPath.push([pickupCoords.lat, pickupCoords.lng]);
-        if (isValid(deliveryCoords)) fallbackPath.push([deliveryCoords.lat, deliveryCoords.lng]);
-        
-        if (fallbackPath.length >= 2) {
-          if (routeRef.current && mapInstance.current.hasLayer(routeRef.current)) {
-            mapInstance.current.removeLayer(routeRef.current);
-          }
-          routeRef.current = L.polyline(fallbackPath, { color: 'var(--brown-mid)', weight: 3, opacity: 0.5, dashArray: '10, 10' }).addTo(mapInstance.current);
-        }
-      }
-    };
+          } else throw new Error('no route');
+        })
+        .catch(() => {
+          if (!mapInstance.current) return;
+          routeRef.current = L.polyline(
+            points.map(c => [c.lat, c.lng]),
+            { color: '#C9921A', weight: 4, opacity: 0.75, dashArray: '10,8' }
+          ).addTo(mapInstance.current);
+        });
 
-    fetchRoute();
-  }, [pickupCoords?.lat, pickupCoords?.lng, deliveryCoords?.lat, deliveryCoords?.lng, currentCoords?.lat, currentCoords?.lng]);
+      // Fit map to all markers
+      try {
+        const allPts = [pickupCoords, resolvedDelivery, driverPos].filter(c => c?.lat && c?.lng);
+        if (allPts.length >= 2) {
+          map.invalidateSize();
+          map.fitBounds(L.latLngBounds(allPts.map(c => [c.lat, c.lng])), { padding: [50, 50], animate: false });
+        }
+      } catch (_) { /* ignore */ }
+    }
+  }, [
+    pickupCoords?.lat, pickupCoords?.lng,
+    deliveryCoords?.lat, deliveryCoords?.lng,
+    currentCoords?.lat, currentCoords?.lng,
+    orderAddress,
+  ]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
-    <div 
-      ref={mapRef} 
-      style={{ height: '100%', width: '100%', borderRadius: 12, overflow: 'hidden', border: '1.5px solid var(--gold)', background: '#f8f9fa' }} 
+    <div
+      ref={mapRef}
+      style={{ height: '100%', width: '100%', borderRadius: 12, overflow: 'hidden', border: '2px solid #C9921A', background: '#f0f0f0' }}
     />
   );
 }

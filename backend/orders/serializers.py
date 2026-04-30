@@ -54,36 +54,16 @@ class OrderSerializer(serializers.ModelSerializer):
         return None
 
     def get_customer_lat(self, obj):
-        # 1. Try order-specific lat
-        if getattr(obj, 'customer_lat', None) is not None:
-            return float(obj.customer_lat)
-        # 2. Fallback to customer profile lat (safe access)
-        c_lat = getattr(obj.customer, 'latitude', None)
-        if c_lat is not None:
-            return float(c_lat)
-        # 3. Last resort: Real-time geocode of the order address
-        if obj.address:
-            try:
-                from utils.geocoding import geocode_address
-                lat, lng = geocode_address(obj.address)
-                if lat: return float(lat)
+        # 1. Try order-specific lat (set at order creation via geocoding)
+        if obj.customer_lat is not None:
+            try: return float(obj.customer_lat)
             except: pass
         return None
 
     def get_customer_lng(self, obj):
-        # 1. Try order-specific lng
-        if getattr(obj, 'customer_lng', None) is not None:
-            return float(obj.customer_lng)
-        # 2. Fallback to customer profile lng (safe access)
-        c_lng = getattr(obj.customer, 'longitude', None)
-        if c_lng is not None:
-            return float(c_lng)
-        # 3. Last resort: Real-time geocode of the order address
-        if obj.address:
-            try:
-                from utils.geocoding import geocode_address
-                lat, lng = geocode_address(obj.address)
-                if lng: return float(lng)
+        # 1. Try order-specific lng (set at order creation via geocoding)
+        if obj.customer_lng is not None:
+            try: return float(obj.customer_lng)
             except: pass
         return None
 

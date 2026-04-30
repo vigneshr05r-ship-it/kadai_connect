@@ -279,6 +279,7 @@ export default function Orders() {
                   pickupCoords={trackingOrder.store_lat ? { lat: Number(trackingOrder.store_lat), lng: Number(trackingOrder.store_lng) } : null}
                   deliveryCoords={trackingOrder.customer_lat ? { lat: Number(trackingOrder.customer_lat), lng: Number(trackingOrder.customer_lng) } : null}
                   currentCoords={trackingOrder.delivery_info?.lat ? { lat: Number(trackingOrder.delivery_info.lat), lng: Number(trackingOrder.delivery_info.lng) } : null}
+                  orderAddress={trackingOrder.address}
                 />
               </div>
               

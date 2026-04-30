@@ -23,6 +23,15 @@ export default function ProductGrid({ products, onSelect, onEdit, onDelete, onAd
         const inWishlist = wishlist?.some(w => w.id === p.id);
         const badge = BADGE_COLORS[p.badgeType] || (p.badge ? { bg: 'var(--parchment)', color: 'var(--brown-deep)', label: p.badge } : null);
         
+        const rawImg = p.image_url || p.image || '';
+        const resolveImg = (u) => {
+          if (!u) return 'https://images.unsplash.com/photo-1542838132-92c53300491e?w=400';
+          if (u.startsWith('http') || u.startsWith('blob:') || u.startsWith('data:')) return u;
+          const base = (import.meta.env.VITE_API_URL || 'https://kadai-connect.onrender.com').replace(/\/$/, '');
+          return `${base}${u.startsWith('/') ? '' : '/'}${u}`;
+        };
+        const imgSrc = resolveImg(rawImg);
+
         return (
           <div 
             key={p.id} 
@@ -34,9 +43,10 @@ export default function ProductGrid({ products, onSelect, onEdit, onDelete, onAd
               style={{ height: 160, background: 'var(--cream)', position: 'relative', cursor: 'pointer', overflow: 'hidden', borderBottom: '1px solid var(--parchment)' }}
             >
               <img 
-                src={p.image_url || p.image || `https://images.unsplash.com/photo-1542838132-92c53300491e?w=400`} 
+                src={imgSrc}
                 alt={p.name} 
                 style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1542838132-92c53300491e?w=400'; }}
               />
               {badge && (
                 <div style={{ position: 'absolute', top: 10, left: 10, background: badge.bg, color: badge.color, padding: '4px 8px', borderRadius: 8, fontSize: '.65rem', fontWeight: 800, textTransform: 'uppercase' }}>

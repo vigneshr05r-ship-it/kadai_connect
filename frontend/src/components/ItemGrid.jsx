@@ -16,9 +16,9 @@ export default function ItemGrid({ items, type = 'product', onSelect, onEdit, on
         const inWishlist = wishlist?.some(w => w.id === item.id);
         let imageUrl = item.image_url || item.image;
         
-        // If image is a relative path from the backend, prefix it with the API URL
-        if (typeof imageUrl === 'string' && imageUrl.startsWith('/media/')) {
-          const baseUrl = import.meta.env.VITE_API_URL || '';
+        // Always resolve relative /media/ paths using the absolute backend URL
+        if (typeof imageUrl === 'string' && (imageUrl.startsWith('/media/') || imageUrl.startsWith('/static/'))) {
+          const baseUrl = (import.meta.env.VITE_API_URL || 'https://kadai-connect.onrender.com').replace(/\/$/, '');
           imageUrl = `${baseUrl}${imageUrl}`;
         }
 

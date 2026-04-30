@@ -662,11 +662,18 @@ function MarketingHub({ products, services, storeData, isTa, apiFetch, showToast
   };
 
   const shareWhatsApp = () => {
-    window.open('https://wa.me/?text=' + encodeURIComponent(getCombinedText() + '\n\n' + (storeData?.name || 'Shop') + ' : https://kadaiconnect.com/shop/' + (storeData?.id || 1)));
+    const appUrl = 'https://kadai-connect.vercel.app';
+    const storeLink = `${appUrl}/shops`;
+    const msg = getCombinedText()
+      + `\n\n🛒 Shop Now on Kadai Connect:\n${storeLink}\n\n📲 Login & order instantly from your local shop!`;
+    window.open('https://wa.me/?text=' + encodeURIComponent(msg), '_blank');
   };
 
   const shareSMS = () => {
-    window.open('sms:?body=' + encodeURIComponent(getCombinedText() + '\n\n' + (storeData?.name || 'Shop') + ' : https://kadaiconnect.com/shop/' + (storeData?.id || 1)));
+    const appUrl = 'https://kadai-connect.vercel.app';
+    const storeLink = `${appUrl}/shops`;
+    const msg = getCombinedText() + `\n\n🛒 Order now: ${storeLink}`;
+    window.open('sms:?body=' + encodeURIComponent(msg));
   };
 
   const S = {
@@ -815,7 +822,7 @@ function MarketingHub({ products, services, storeData, isTa, apiFetch, showToast
             </div>
             <div style={{ display: 'flex', gap: 10 }}>
               <button onClick={() => setShowInstaPopup(false)} style={{ flex: 1, padding: 12, borderRadius: 8, border: '2px solid var(--parchment)', background: 'transparent', cursor: 'pointer', fontWeight: 700, color: 'var(--brown-mid)' }}>OK</button>
-              <button onClick={() => { setShowInstaPopup(false); window.open("https://www.instagram.com/", "_blank"); }} style={{ flex: 2, padding: 12, borderRadius: 8, background: 'linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%)', color: '#fff', border: 'none', cursor: 'pointer', fontWeight: 700 }}>Open Instagram</button>
+              <button onClick={() => { setShowInstaPopup(false); window.open("https://www.instagram.com/create/select/", "_blank"); }} style={{ flex: 2, padding: 12, borderRadius: 8, background: 'linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%)', color: '#fff', border: 'none', cursor: 'pointer', fontWeight: 700 }}>📸 Create Post</button>
             </div>
           </div>
         </div>
@@ -2148,6 +2155,7 @@ export default function ShopkeeperDashboard() {
                 pickupCoords={storeData?.latitude ? { lat: Number(storeData.latitude), lng: Number(storeData.longitude) } : null}
                 deliveryCoords={trackingOrder.customer_lat ? { lat: Number(trackingOrder.customer_lat), lng: Number(trackingOrder.customer_lng) } : null}
                 currentCoords={trackingOrder.delivery_info?.lat ? { lat: Number(trackingOrder.delivery_info.lat), lng: Number(trackingOrder.delivery_info.lng) } : null}
+                orderAddress={trackingOrder.address}
               />
             </div>
             
