@@ -67,7 +67,7 @@ export const AuthProvider = ({ children }) => {
       headers['Authorization'] = `Bearer ${token}`;
     }
 
-    const BASE_URL = import.meta.env.VITE_API_URL || '';
+    const BASE_URL = (import.meta.env.VITE_API_URL || 'https://kadai-connect.onrender.com').replace(/\/$/, '');
     const fullUrl = url.startsWith('http') ? url : `${BASE_URL}${url}`;
 
     try {
