@@ -102,7 +102,7 @@ function UploadModal({ onClose, onSave, editItem, mode = 'product', showToast })
   const getImageUrl = (url) => {
     if (!url) return null;
     if (url.startsWith('http') || url.startsWith('blob:') || url.startsWith('data:')) return url;
-    const baseUrl = import.meta.env.VITE_API_URL || '';
+    const baseUrl = import.meta.env.VITE_API_URL || 'https://kadai-connect.onrender.com';
     return `${baseUrl.replace(/\/$/, '')}${url.startsWith('/') ? '' : '/'}${url}`;
   };
 
@@ -831,7 +831,8 @@ export default function ShopkeeperDashboard() {
   const getImageUrl = (url) => {
     if (!url) return null;
     if (url.startsWith('http') || url.startsWith('blob:') || url.startsWith('data:')) return url;
-    const baseUrl = import.meta.env.VITE_API_URL || '';
+    // Hardcoded fallback for production stability if env var is missing
+    const baseUrl = import.meta.env.VITE_API_URL || 'https://kadai-connect.onrender.com';
     return `${baseUrl.replace(/\/$/, '')}${url.startsWith('/') ? '' : '/'}${url}`;
   };
   const { user, logout, apiFetch, updateUser } = useAuth();
@@ -1264,7 +1265,7 @@ export default function ShopkeeperDashboard() {
         </div>
         <div style={{ padding: '12px 14px', borderBottom: '1px solid rgba(201,146,26,.2)', display: 'flex', alignItems: 'center', gap: 10 }}>
           <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'var(--gold)', display: 'grid', placeItems: 'center', fontSize: '1.1rem', border: '2px solid var(--gold-light)', flexShrink: 0, overflow: 'hidden' }}>
-            {storeData?.logo ? <img src={storeData.logo} alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }}/> : '🏪'}
+            {storeData?.logo ? <img src={getImageUrl(storeData.logo)} alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }}/> : '🏪'}
           </div>
           <div>
             <div style={{ fontSize: '.75rem', color: 'var(--cream)', fontWeight: 600 }}>{storeData?.name || shopName}</div>
@@ -1351,7 +1352,7 @@ export default function ShopkeeperDashboard() {
 
             <button onClick={() => setSection('settings')} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10 }}>
               <div style={{ width: 34, height: 34, borderRadius: '50%', background: 'var(--gold)', display: 'grid', placeItems: 'center', border: '1.5px solid var(--gold-light)', boxShadow: '0 2px 8px rgba(0,0,0,0.1)', overflow: 'hidden' }}>
-                {storeData?.logo ? <img src={storeData.logo} alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }}/> : <UserCircle size={20} color="var(--brown-deep)" />}
+                {storeData?.logo ? <img src={getImageUrl(storeData.logo)} alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }}/> : <UserCircle size={20} color="var(--brown-deep)" />}
               </div>
               <span className="profile-name" style={{ fontSize: '.75rem', fontWeight: 700, color: 'var(--brown-deep)' }}>{storeData?.name || firstName}</span>
             </button>
@@ -2272,7 +2273,7 @@ function ProductGrid({ products, onEdit, onDelete, onAdd, onSelect }) {
   const getImageUrl = (url) => {
     if (!url) return null;
     if (url.startsWith('http') || url.startsWith('blob:') || url.startsWith('data:')) return url;
-    const baseUrl = import.meta.env.VITE_API_URL || '';
+    const baseUrl = import.meta.env.VITE_API_URL || 'https://kadai-connect.onrender.com';
     return `${baseUrl.replace(/\/$/, '')}${url.startsWith('/') ? '' : '/'}${url}`;
   };
   return (
