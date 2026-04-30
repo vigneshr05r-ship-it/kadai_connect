@@ -133,8 +133,8 @@ if not DEBUG:
     CORS_ALLOWED_ORIGINS = [o.strip() for o in _cors_origins.split(',') if o.strip()]
     # Also allow all Vercel preview deployment URLs automatically
     CORS_ALLOWED_ORIGIN_REGEXES = [
-        r'^https://kadai-connect.*\.vercel\.app$',
-        r'^https://vigneshr05r-ship-it.*\.vercel\.app$',
+        r"^https://.*\.vercel\.app$",
+        r"^https://.*\.onrender\.com$",
     ]
 
 REST_FRAMEWORK = {
