@@ -32,17 +32,18 @@ class ServiceListCreateView(generics.ListCreateAPIView):
         # If authenticated shopkeeper, show all their services (dashboard view)
         user = self.request.user
         if user.is_authenticated and getattr(user, 'role', '') == 'shopkeeper':
-            try:
-                store = Store.objects.get(owner=user)
+            store = Store.objects.filter(owner=user).first()
+            if store:
                 return Service.objects.filter(store=store).select_related('store', 'category').order_by('-created_at')
-            except Store.DoesNotExist:
-                return Service.objects.none()
+            return Service.objects.none()
         
         # Otherwise show all active services (Customer view)
         return Service.objects.filter(is_active=True).select_related('store', 'category').order_by('-created_at')
 
     def perform_create(self, serializer):
-        store = Store.objects.get(owner=self.request.user)
+        store = Store.objects.filter(owner=self.request.user).first()
+        if not store:
+            raise serializers.ValidationError({"detail": "Store not found for this account."})
         category = resolve_category(self.request.data, default_type='service')
         
         if not category:
@@ -93,11 +94,10 @@ class BookingListCreateView(generics.ListCreateAPIView):
             return Booking.objects.none()
             
         if user.role == 'shopkeeper':
-            try:
-                store = Store.objects.get(owner=user)
+            store = Store.objects.filter(owner=user).first()
+            if store:
                 return Booking.objects.filter(store=store).order_by('-created_at')
-            except Store.DoesNotExist:
-                return Booking.objects.none()
+            return Booking.objects.none()
         
         # Default: Customer sees their own bookings
         return Booking.objects.filter(customer=user).order_by('-created_at')
@@ -146,11 +146,10 @@ class BookingDetailView(generics.RetrieveUpdateDestroyAPIView):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        try:
-            store = Store.objects.get(owner=self.request.user)
+        store = Store.objects.filter(owner=self.request.user).first()
+        if store:
             return Booking.objects.filter(store=store)
-        except Store.DoesNotExist:
-            return Booking.objects.none()
+        return Booking.objects.none()
 
 
 class BookingStatusUpdateView(APIView):
@@ -160,7 +159,9 @@ class BookingStatusUpdateView(APIView):
     def patch(self, request, pk):
         try:
             from delivery.models import DeliveryAssignment
-            store = Store.objects.get(owner=request.user)
+            store = Store.objects.filter(owner=request.user).first()
+            if not store:
+                return Response({'error': 'Store not found'}, status=404)
             booking = Booking.objects.get(pk=pk, store=store)
             new_status = request.data.get('status')
             
