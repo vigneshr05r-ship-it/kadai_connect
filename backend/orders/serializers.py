@@ -108,15 +108,22 @@ class OrderSerializer(serializers.ModelSerializer):
         user = self.context['request'].user
         validated_data['customer'] = user
         
-        # Geocode customer address
+        # Geocode customer address (with fallback to avoid 500)
         if 'address' in validated_data and (not validated_data.get('customer_lat') or not validated_data.get('customer_lng')):
-            lat, lng = geocode_address(validated_data['address'])
-            if lat and lng:
-                validated_data['customer_lat'] = lat
-                validated_data['customer_lng'] = lng
+            try:
+                lat, lng = geocode_address(validated_data['address'])
+                if lat and lng:
+                    validated_data['customer_lat'] = lat
+                    validated_data['customer_lng'] = lng
+            except Exception:
+                pass
         
         # 1. Calculate Delivery Fee (Production logic)
-        distance = float(validated_data.get('distance_km', 2.0)) # Default 2km if not provided
+        try:
+            d_val = validated_data.get('distance_km')
+            distance = float(d_val) if d_val is not None else 2.0
+        except (ValueError, TypeError):
+            distance = 2.0
         base_fee = 20
         rate_per_km = 8
         total_delivery_fee = base_fee + (distance * rate_per_km)
@@ -137,7 +144,8 @@ class OrderSerializer(serializers.ModelSerializer):
                 validated_data['store'] = store
                 
                 if user.is_first_order and store.first_order_free_enabled:
-                    max_cap = float(store.max_free_delivery_cap)
+                    m_cap = store.max_free_delivery_cap
+                    max_cap = float(m_cap) if m_cap is not None else 50.0
                     shopkeeper_pay = min(total_delivery_fee, max_cap)
                     customer_pay = max(0, total_delivery_fee - shopkeeper_pay)
                     

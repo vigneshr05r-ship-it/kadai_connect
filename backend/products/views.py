@@ -78,21 +78,24 @@ class CategoryViewSet(viewsets.ModelViewSet):
         return qs
 
     def list(self, request, *args, **kwargs):
-        # Auto-seed if empty
+        # Auto-seed if empty (wrapped in try-except with logging)
         try:
             if not Category.objects.exists():
                 self._seed_categories()
         except Exception as e:
-            print(f"Seeding error: {e}")
+            import logging
+            logging.getLogger(__name__).error(f"Category seeding failed: {str(e)}")
+            
         return super().list(request, *args, **kwargs)
 
     def _seed_categories(self):
+        # Using plain icons for maximum DB compatibility (MySQL utf8 vs utf8mb4)
         defaults = [
-            {'name': 'Textiles', 'name_ta': 'துணிகள்', 'icon': '👗', 'type': 'product'},
-            {'name': 'Groceries', 'name_ta': 'மளிகை', 'icon': '🫙', 'type': 'product'},
-            {'name': 'Lamps & Decor', 'name_ta': 'விளக்குகள்', 'icon': '🪔', 'type': 'product'},
-            {'name': 'Crackers', 'name_ta': 'பட்டாசுகள்', 'icon': '🎆', 'type': 'product'},
-            {'name': 'Services', 'name_ta': 'சேவைகள்', 'icon': '✂️', 'type': 'service'},
+            {'name': 'Textiles', 'name_ta': 'துணிகள்', 'icon': 'product', 'type': 'product'},
+            {'name': 'Groceries', 'name_ta': 'மளிகை', 'icon': 'shopping_cart', 'type': 'product'},
+            {'name': 'Lamps & Decor', 'name_ta': 'விளக்குகள்', 'icon': 'lightbulb', 'type': 'product'},
+            {'name': 'Crackers', 'name_ta': 'பட்டாசுகள்', 'icon': 'celebration', 'type': 'product'},
+            {'name': 'Services', 'name_ta': 'சேவைகள்', 'icon': 'construction', 'type': 'service'},
         ]
         for d in defaults:
             Category.objects.get_or_create(name=d['name'], defaults=d)
