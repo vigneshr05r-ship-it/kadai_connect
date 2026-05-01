@@ -98,6 +98,7 @@ function UploadModal({ onClose, onSave, editItem, mode = 'product', showToast })
   const [form, setForm] = useState(editItem || initialForm);
   const [voiceError, setVoiceError] = useState('');
   const [vTranscript, setVTranscript] = useState('');
+  const [saving, setSaving] = useState(false);
 
   const getImageUrl = (url) => {
     if (!url) return null;
@@ -271,23 +272,31 @@ function UploadModal({ onClose, onSave, editItem, mode = 'product', showToast })
   const handleSave = async () => {
     if (!form.name || !form.price) return showToast(isTa ? 'பெயர் மற்றும் விலை உள்ளிடவும்.' : 'Enter name and price.');
     
-    const payload = {
-      ...form,
-      id: editItem?.id || null,
-      type: uploadType,
-      category: isOther ? 'others' : (subCatId || mainCatId),
-      new_category_name: isOther ? newCatName : undefined,
-      parent: isOther ? mainCatId : undefined,
-      price: parseFloat(form.price),
-    };
+    setSaving(true);
+    try {
+      const payload = {
+        ...form,
+        id: editItem?.id || null,
+        type: uploadType,
+        category: isOther ? 'others' : (subCatId || mainCatId),
+        new_category_name: isOther ? newCatName : undefined,
+        parent: isOther ? mainCatId : undefined,
+        price: parseFloat(form.price),
+      };
 
-    if (isService) {
-      payload.duration_minutes = parseInt(form.duration_minutes) || 60;
-    } else {
-      payload.stock = parseInt(form.stock) || 0;
+      if (isService) {
+        payload.duration_minutes = parseInt(form.duration_minutes) || 60;
+      } else {
+        payload.stock = parseInt(form.stock) || 0;
+      }
+
+      await onSave(payload);
+    } catch (e) {
+      console.error(e);
+      showToast(isTa ? 'சேமிப்பதில் பிழை' : 'Error saving');
+    } finally {
+      setSaving(false);
     }
-
-    await onSave(payload);
   };
 
   const currentMain = categories?.find?.(c => c.id == mainCatId);
@@ -516,8 +525,15 @@ function UploadModal({ onClose, onSave, editItem, mode = 'product', showToast })
         </div>
         <div style={{ display: 'flex', gap: 10, marginTop: 18 }}>
           <button onClick={() => setStep(1)} style={{ flex: 1, padding: 12, borderRadius: 4, border: '2px solid var(--parchment)', background: 'transparent', color: 'var(--brown-mid)', cursor: 'pointer', fontFamily: 'var(--font-d)' }}>{isTa ? '← பின்செல்லவும்' : '← Back'}</button>
-          <button onClick={handleSave} style={{ flex: 2, padding: 12, borderRadius: 4, background: 'var(--brown-deep)', color: 'var(--gold-light)', border: '2px solid var(--gold)', fontFamily: 'var(--font-d)', fontWeight: 700, cursor: 'pointer' }}>
-            {isTa ? `✅ ${isService ? 'சேவையைச் சேமி' : 'பொருளைச் சேமி'}` : `✅ Save ${isService ? 'Service' : 'Product'}`}
+          <button 
+            disabled={saving}
+            onClick={handleSave} 
+            style={{ ...S.btnPrimary, flex: 2, padding: 12, borderRadius: 4, background: 'var(--brown-deep)', color: 'var(--gold-light)', border: '2px solid var(--gold)', opacity: saving ? 0.7 : 1, cursor: saving ? 'wait' : 'pointer' }}
+          >
+            {saving 
+              ? (isTa ? '⌛ சேமிக்கப்படுகிறது...' : '⌛ Saving...') 
+              : (isTa ? `✅ ${isService ? 'சேவையைச் சேமி' : 'பொருளைச் சேமி'}` : `✅ Save ${isService ? 'Service' : 'Product'}`)
+            }
           </button>
         </div>
         </>
@@ -872,6 +888,7 @@ export default function ShopkeeperDashboard() {
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [trackingOrder, setTrackingOrder] = useState(null);
   const [trackingLocation, setTrackingLocation] = useState(null);
+  const [loadingOrders, setLoadingOrders] = useState({}); // { orderId: true/false }
 
   
   const TN_DISTRICTS = ["Chennai", "Coimbatore", "Madurai", "Tiruchirappalli", "Salem", "Tirunelveli", "Erode", "Vellore", "Thoothukudi", "Thanjavur", "Dindigul", "Ranipet", "Virudhunagar", "Kanyakumari", "Theni", "Namakkal", "Tiruppur", "Kancheepuram", "Chengalpattu", "Thiruvallur", "Cuddalore", "Nagapattinam", "Pudukkottai", "Sivaganga", "Tiruvarur", "Tiruvannamalai", "Viluppuram", "Ariyalur", "Dharmapuri", "Karur", "Krishnagiri", "Perambalur", "Ramanathapuram", "The Nilgiris", "Tenkasi", "Mayiladuthurai", "Kallakurichi", "Tirupathur"];
@@ -1014,6 +1031,7 @@ export default function ShopkeeperDashboard() {
   const shopName = storeData?.name || sess?.storeName || sess?.name || fallbackShopName;
 
   const updateOrderStatus = async (id, status) => {
+    setLoadingOrders(p => ({ ...p, [id]: true }));
     try {
       const r = await apiFetch(`/api/orders/${id}/`, {
         method: 'PATCH',
@@ -1025,6 +1043,8 @@ export default function ShopkeeperDashboard() {
       }
     } catch (e) {
       showToast(isTa ? 'புதுப்பிப்பதில் பிழை' : 'Error updating status');
+    } finally {
+      setLoadingOrders(p => ({ ...p, [id]: false }));
     }
   };
 
@@ -1686,22 +1706,38 @@ export default function ShopkeeperDashboard() {
                         <div style={{ display: 'flex', gap: 8 }}>
                           {o.status === 'new' && (
                             <>
-                              <button onClick={() => updateOrderStatus(o.id, 'confirmed')} style={{ padding: '6px 12px', background: 'var(--green)', color: '#fff', border: 'none', borderRadius: 8, fontSize: '.7rem', fontWeight: 800, cursor: 'pointer' }}>
-                                {isTa ? 'ஏற்றுக்கொள்' : 'Accept'}
+                              <button 
+                                disabled={loadingOrders[o.id]}
+                                onClick={() => updateOrderStatus(o.id, 'confirmed')} 
+                                style={{ padding: '6px 12px', background: 'var(--green)', color: '#fff', border: 'none', borderRadius: 8, fontSize: '.7rem', fontWeight: 800, cursor: loadingOrders[o.id] ? 'wait' : 'pointer', opacity: loadingOrders[o.id] ? 0.7 : 1 }}
+                              >
+                                {loadingOrders[o.id] ? (isTa ? '...' : '...') : (isTa ? 'ஏற்றுக்கொள்' : 'Accept')}
                               </button>
-                              <button onClick={() => updateOrderStatus(o.id, 'cancelled')} style={{ padding: '6px 12px', background: 'var(--rust)', color: '#fff', border: 'none', borderRadius: 8, fontSize: '.7rem', fontWeight: 800, cursor: 'pointer' }}>
-                                {isTa ? 'நிராகரி' : 'Reject'}
+                              <button 
+                                disabled={loadingOrders[o.id]}
+                                onClick={() => updateOrderStatus(o.id, 'cancelled')} 
+                                style={{ padding: '6px 12px', background: 'var(--rust)', color: '#fff', border: 'none', borderRadius: 8, fontSize: '.7rem', fontWeight: 800, cursor: loadingOrders[o.id] ? 'wait' : 'pointer', opacity: loadingOrders[o.id] ? 0.7 : 1 }}
+                              >
+                                {loadingOrders[o.id] ? '...' : (isTa ? 'நிராகரி' : 'Reject')}
                               </button>
                             </>
                           )}
-                          {o.status === 'confirmed' && (
-                            <button onClick={() => updateOrderStatus(o.id, 'packed')} style={{ padding: '6px 12px', background: 'var(--brown-deep)', color: 'var(--gold-light)', border: 'none', borderRadius: 8, fontSize: '.7rem', fontWeight: 800, cursor: 'pointer' }}>
-                              {isTa ? 'பேக் செய்யப்பட்டது' : 'Mark Packed'}
+                           {o.status === 'confirmed' && (
+                            <button 
+                              disabled={loadingOrders[o.id]}
+                              onClick={() => updateOrderStatus(o.id, 'packed')} 
+                              style={{ padding: '6px 12px', background: 'var(--brown-deep)', color: 'var(--gold-light)', border: 'none', borderRadius: 8, fontSize: '.7rem', fontWeight: 800, cursor: loadingOrders[o.id] ? 'wait' : 'pointer', opacity: loadingOrders[o.id] ? 0.7 : 1 }}
+                            >
+                              {loadingOrders[o.id] ? '...' : (isTa ? 'பேக் செய்யப்பட்டது' : 'Mark Packed')}
                             </button>
                           )}
-                          {o.status === 'packed' && (
-                            <button onClick={() => updateOrderStatus(o.id, 'ready')} style={{ padding: '6px 12px', background: 'var(--gold)', color: 'var(--brown-deep)', border: 'none', borderRadius: 8, fontSize: '.7rem', fontWeight: 800, cursor: 'pointer' }}>
-                              {isTa ? 'தயார்' : 'Ready for Delivery'}
+                           {o.status === 'packed' && (
+                            <button 
+                              disabled={loadingOrders[o.id]}
+                              onClick={() => updateOrderStatus(o.id, 'ready')} 
+                              style={{ padding: '6px 12px', background: 'var(--gold)', color: 'var(--brown-deep)', border: 'none', borderRadius: 8, fontSize: '.7rem', fontWeight: 800, cursor: loadingOrders[o.id] ? 'wait' : 'pointer', opacity: loadingOrders[o.id] ? 0.7 : 1 }}
+                            >
+                              {loadingOrders[o.id] ? '...' : (isTa ? 'தயார்' : 'Ready for Delivery')}
                             </button>
                           )}
                         </div>
