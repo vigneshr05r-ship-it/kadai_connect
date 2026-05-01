@@ -112,7 +112,10 @@ function UploadModal({ onClose, onSave, editItem, mode = 'product', showToast })
   useEffect(() => {
     const fetchCats = async () => {
       const res = await apiFetch(`/api/products/categories/?type=${uploadType}&top_level=true`);
-      if (res?.ok) setCategories(await res.json());
+      if (res?.ok) {
+        const data = await res.json();
+        setCategories(Array.isArray(data) ? data : (data.results || []));
+      }
     };
     fetchCats();
   }, [uploadType]);
@@ -342,7 +345,11 @@ function UploadModal({ onClose, onSave, editItem, mode = 'product', showToast })
                 }
               }}>
                 <option value="">{isTa ? '-- தேர்வு செய்க --' : '-- Select --'}</option>
-                {categories?.filter?.(c => isNaN(c.name)).map(c => <option key={c.id} value={c.id}>{isTa ? (c.name_ta || c.name) : c.name} {c.icon}</option>)}
+                {categories && categories.length > 0 ? (
+                  categories.map(c => <option key={c.id} value={c.id}>{isTa ? (c.name_ta || c.name) : c.name} {c.icon}</option>)
+                ) : (
+                  <option disabled>{isTa ? 'வகைகள் ஏற்றப்படுகின்றன...' : 'Loading categories...'}</option>
+                )}
                 <option value="others" style={{ fontStyle: 'italic', color: 'var(--gold)' }}>✨ {isTa ? 'மற்றவை / புதிய வகை' : 'Others / Add New'}</option>
               </select>
             </div>
@@ -663,7 +670,7 @@ function MarketingHub({ products, services, storeData, isTa, apiFetch, showToast
 
   const shareWhatsApp = () => {
     const appUrl = 'https://kadai-connect.vercel.app';
-    const storeLink = `${appUrl}/shops`;
+    const storeLink = storeData?.id ? `${appUrl}/shop/${storeData.id}` : `${appUrl}/shops`;
     const msg = getCombinedText()
       + `\n\n🛒 Shop Now on Kadai Connect:\n${storeLink}\n\n📲 Login & order instantly from your local shop!`;
     window.open('https://wa.me/?text=' + encodeURIComponent(msg), '_blank');
@@ -671,7 +678,7 @@ function MarketingHub({ products, services, storeData, isTa, apiFetch, showToast
 
   const shareSMS = () => {
     const appUrl = 'https://kadai-connect.vercel.app';
-    const storeLink = `${appUrl}/shops`;
+    const storeLink = storeData?.id ? `${appUrl}/shop/${storeData.id}` : `${appUrl}/shops`;
     const msg = getCombinedText() + `\n\n🛒 Order now: ${storeLink}`;
     window.open('sms:?body=' + encodeURIComponent(msg));
   };
@@ -1320,25 +1327,6 @@ export default function ShopkeeperDashboard() {
         {/* TOP HEADER */}
         <header className="db-top-header">
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <button 
-              onClick={() => navigate(-1)} 
-              style={{ 
-                background: 'var(--brown-deep)', 
-                border: 'none', 
-                color: 'var(--gold-light)', 
-                cursor: 'pointer', 
-                width: 44, 
-                height: 44, 
-                borderRadius: 14, 
-                display: 'flex', 
-                alignItems: 'center', 
-                justifyContent: 'center', 
-                boxShadow: '0 4px 10px rgba(0,0,0,0.1)', 
-                transition: '.2s' 
-              }}
-            >
-              <ArrowLeft size={22} />
-            </button>
             <button onClick={() => setSidebarOpen(true)} className="hamburger-btn" style={{ background: 'none', border: 'none', color: 'inherit', fontSize: '1.4rem', cursor: 'pointer', display: 'none', alignItems: 'center' }}>
               <Menu size={24} />
             </button>
@@ -2287,11 +2275,17 @@ function ProductGrid({ products, onEdit, onDelete, onAdd, onSelect }) {
   return (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(200px,1fr))', gap: 16, marginTop: 8 }}>
       {products.map(p => (
-        <div key={p.id} style={{ background: 'var(--cream)', border: '1.5px solid var(--parchment)', borderRadius: 8, overflow: 'hidden', boxShadow: '2px 3px 10px var(--shadow)', transition: '.25s' }}
-          onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.boxShadow = '4px 8px 20px var(--shadow)'; }}
-          onMouseLeave={e => { e.currentTarget.style.transform = ''; e.currentTarget.style.boxShadow = '2px 3px 10px var(--shadow)'; }}>
+        <div key={p.id} className="shop-product-card" style={{ background: 'var(--cream)', border: '1.5px solid var(--parchment)', borderRadius: 8, overflow: 'hidden', boxShadow: '2px 3px 10px var(--shadow)', transition: '.25s' }}>
           <div onClick={() => onSelect && onSelect(p)} style={{ height: 160, background: 'var(--cream-dark)', display: 'flex', alignItems: 'center', justifyContent: 'center', borderBottom: '1px solid var(--parchment)', fontSize: '2.8rem', overflow: 'hidden', cursor: 'pointer' }}>
-            {p.image ? <img src={getImageUrl(p.image)} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={e => { e.target.style.display = 'none'; }}/> : (p.imgUrl ? <img src={getImageUrl(p.imgUrl)} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={e => { e.target.style.display = 'none'; }}/> : p.emoji || (p.category === 'Services' ? '✂️' : '📦'))}
+            {p.image_url ? (
+              <img src={p.image_url} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={e => { e.target.style.display = 'none'; }}/>
+            ) : p.image ? (
+              <img src={getImageUrl(p.image)} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={e => { e.target.style.display = 'none'; }}/>
+            ) : p.imgUrl ? (
+              <img src={getImageUrl(p.imgUrl)} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={e => { e.target.style.display = 'none'; }}/>
+            ) : (
+              <span style={{ transition: '.2s' }}>{p.emoji || (p.category === 'Services' ? '✂️' : '📦')}</span>
+            )}
           </div>
           <div style={{ padding: '10px 12px' }}>
             <div onClick={() => onSelect && onSelect(p)} style={{ cursor: 'pointer' }}>

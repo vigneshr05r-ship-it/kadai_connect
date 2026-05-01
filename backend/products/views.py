@@ -62,6 +62,7 @@ class ProductViewSet(viewsets.ModelViewSet):
 class CategoryViewSet(viewsets.ModelViewSet):
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
+    pagination_class = None
 
     def get_queryset(self):
         qs = self.queryset
@@ -75,6 +76,23 @@ class CategoryViewSet(viewsets.ModelViewSet):
             qs = qs.filter(parent=None)
             
         return qs
+
+    def list(self, request, *args, **kwargs):
+        # Auto-seed if empty
+        if not Category.objects.exists():
+            self._seed_categories()
+        return super().list(request, *args, **kwargs)
+
+    def _seed_categories(self):
+        defaults = [
+            {'name': 'Textiles', 'name_ta': 'துணிகள்', 'icon': '👗', 'type': 'product'},
+            {'name': 'Groceries', 'name_ta': 'மளிகை', 'icon': '🫙', 'type': 'product'},
+            {'name': 'Lamps & Decor', 'name_ta': 'விளக்குகள்', 'icon': '🪔', 'type': 'product'},
+            {'name': 'Crackers', 'name_ta': 'பட்டாசுகள்', 'icon': '🎆', 'type': 'product'},
+            {'name': 'Services', 'name_ta': 'சேவைகள்', 'icon': '✂️', 'type': 'service'},
+        ]
+        for d in defaults:
+            Category.objects.get_or_create(name=d['name'], defaults=d)
 
     def get_permissions(self):
         if self.action in ['list', 'retrieve']:

@@ -70,16 +70,37 @@ export default function Orders() {
       ? `/api/services/bookings/${id}/cancel/` 
       : `/api/orders/${id}/cancel/`;
     
-    const resp = await apiFetch(endpoint, {
-      method: 'POST',
-      body: JSON.stringify({ reason })
-    });
-    
-    if (!resp.ok) {
-      const err = await resp.json();
-      throw new Error(err.error || 'Cancellation failed');
+    // OPTIMISTIC UPDATE: Update UI instantly
+    const previousOrders = [...orders];
+    const previousBookings = [...bookings];
+
+    if (isBooking) {
+      setBookings(prev => prev.map(b => b.id === id ? { ...b, status: 'Cancelled' } : b));
+    } else {
+      setOrders(prev => prev.map(o => o.id === id ? { ...o, status: 'cancelled' } : o));
     }
-    fetchData();
+    
+    setActiveCancelOrder(null); // Close modal instantly
+
+    try {
+      const resp = await apiFetch(endpoint, {
+        method: 'POST',
+        body: JSON.stringify({ reason })
+      });
+      
+      if (!resp.ok) {
+        const err = await resp.json();
+        throw new Error(err.error || 'Cancellation failed');
+      }
+      // Re-fetch to be sure everything is in sync
+      fetchData();
+    } catch (e) {
+      console.error(e);
+      // ROLLBACK on failure
+      setOrders(previousOrders);
+      setBookings(previousBookings);
+      alert(isTa ? 'ரத்து செய்ய முடியவில்லை: ' + e.message : 'Cancellation failed: ' + e.message);
+    }
   };
 
   const getStatusConfig = (s) => {
@@ -116,9 +137,14 @@ export default function Orders() {
 
         {/* Mixed History List */}
         <div className="space-y-6">
-          {[...(Array.isArray(orders) ? orders : []), ...(Array.isArray(bookings) ? bookings.map(b => ({ ...b, isBooking: true })) : [])]
-            .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
-            .map((item) => {
+          {loading ? (
+            [1,2,3].map(i => (
+              <div key={i} className="skeleton" style={{ height: 200, borderRadius: 24 }} />
+            ))
+          ) : (
+            [...(Array.isArray(orders) ? orders : []), ...(Array.isArray(bookings) ? bookings.map(b => ({ ...b, isBooking: true })) : [])]
+              .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+              .map((item) => {
               const s = getStatusConfig(item.status);
               const createdAt = new Date(item.created_at).getTime();
               const limit = 15 * 60 * 1000; 
@@ -226,7 +252,8 @@ export default function Orders() {
                   </div>
                 </div>
               );
-            })}
+            })
+          )}
         </div>
 
         {activeCancelOrder && (

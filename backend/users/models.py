@@ -13,6 +13,8 @@ class User(AbstractUser):
     address = models.TextField(blank=True, null=True)
     pincode = models.CharField(max_length=10, blank=True, null=True)
     is_first_order = models.BooleanField(default=True)
+    latitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
+    longitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
     
     # Delivery Partner specific fields
     shift = models.CharField(max_length=50, blank=True, null=True)

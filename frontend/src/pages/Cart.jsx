@@ -298,7 +298,15 @@ const Cart = () => {
         )}
 
         {/* Footer Action */}
-        <div className="bg-brown-deep rounded-24 p-6 shadow-lg flex items-center justify-between border-1 border-gold/20">
+        <div className="bg-brown-deep rounded-24 p-6 shadow-lg flex items-center justify-between border-1 border-gold/20 relative overflow-hidden">
+          {checkingOut && (
+            <div className="absolute inset-0 bg-brown-deep/80 backdrop-blur-sm z-10 flex items-center justify-center">
+               <div className="flex items-center gap-3">
+                 <div className="w-5 h-5 border-3 border-gold border-t-transparent rounded-full animate-spin" />
+                 <span className="text-gold font-bold text-sm uppercase tracking-widest">{isTa ? 'செயலாக்கப்படுகிறது...' : 'Processing...'}</span>
+               </div>
+            </div>
+          )}
           <div className="flex flex-col">
             <span className="text-[9px] font-bold uppercase tracking-widest text-gold/60 mb-0.5">{isTa ? 'மொத்தம்' : 'Total'}</span>
             <span className="text-2xl font-bold text-gold">₹{finalTotal.toLocaleString()}</span>
@@ -306,10 +314,10 @@ const Cart = () => {
           <button 
             onClick={handleCheckout}
             disabled={checkingOut}
-            className="bg-gold text-brown-deep px-8 py-3.5 rounded-14 font-bold text-base flex items-center gap-2 active:scale-95 transition-all disabled:opacity-50"
+            className="bg-gold text-brown-deep px-8 py-3.5 rounded-14 font-bold text-base flex items-center gap-2 active:scale-95 transition-all disabled:opacity-50 hover:shadow-lg hover:shadow-gold/20"
           >
-            {checkingOut ? '...' : (step === 0 ? (isTa ? 'தொடரவும்' : 'Continue') : (isTa ? 'ஆர்டர் செய்' : 'Checkout'))}
-            {!checkingOut && <ArrowRight size={18} />}
+            {step === 0 ? (isTa ? 'தொடரவும்' : 'Continue') : (isTa ? 'ஆர்டர் செய்' : 'Checkout')}
+            <ArrowRight size={18} />
           </button>
         </div>
       </div>

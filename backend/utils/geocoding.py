@@ -14,7 +14,12 @@ def geocode_address(address):
         return None, None
         
     try:
-        query = urllib.parse.quote(address)
+        # Append region for better accuracy if not present
+        search_query = address
+        if "Tamil Nadu" not in address:
+            search_query = f"{address}, Tamil Nadu, India"
+            
+        query = urllib.parse.quote(search_query)
         # Using format=jsonv2 as per Nominatim guidelines
         url = f"https://nominatim.openstreetmap.org/search?q={query}&format=jsonv2&limit=1"
         

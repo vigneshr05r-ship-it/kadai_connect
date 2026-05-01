@@ -103,7 +103,7 @@ export default function DeliveryMap({ pickupCoords, deliveryCoords, currentCoord
     const driverPos = (currentCoords?.lat && currentCoords?.lng) ? currentCoords : pickupCoords;
     setMarker('driver', driverPos, bikeIcon, '🛵 Delivery Partner');
 
-    // Draw route between shop and home
+    // DRAW ROUTE
     if (routeRef.current && map.hasLayer(routeRef.current)) map.removeLayer(routeRef.current);
     const points = [pickupCoords, resolvedDelivery].filter(c => c?.lat && c?.lng);
     if (points.length >= 2) {
@@ -114,7 +114,7 @@ export default function DeliveryMap({ pickupCoords, deliveryCoords, currentCoord
           if (!mapInstance.current) return;
           if (data.code === 'Ok' && data.routes?.[0]) {
             const path = data.routes[0].geometry.coordinates.map(([lng, lat]) => [lat, lng]);
-            routeRef.current = L.polyline(path, { color: '#C9921A', weight: 5, opacity: 0.9 }).addTo(mapInstance.current);
+            routeRef.current = L.polyline(path, { color: '#C9921A', weight: 6, opacity: 0.9, lineJoin: 'round' }).addTo(mapInstance.current);
             if (onRouteUpdate) onRouteUpdate({
               distance: (data.routes[0].distance / 1000).toFixed(1),
               duration: Math.round(data.routes[0].duration / 60),
@@ -125,25 +125,26 @@ export default function DeliveryMap({ pickupCoords, deliveryCoords, currentCoord
           if (!mapInstance.current) return;
           routeRef.current = L.polyline(
             points.map(c => [c.lat, c.lng]),
-            { color: '#C9921A', weight: 4, opacity: 0.75, dashArray: '10,8' }
+            { color: '#C9921A', weight: 4, opacity: 0.7, dashArray: '10,10' }
           ).addTo(mapInstance.current);
         });
 
-      // Fit map to all markers
-      try {
+      // Fit map to all markers with a slight delay to ensure container is ready
+      setTimeout(() => {
+        if (!mapInstance.current) return;
         const allPts = [pickupCoords, resolvedDelivery, driverPos].filter(c => c?.lat && c?.lng);
         if (allPts.length >= 2) {
-          map.invalidateSize();
-          map.fitBounds(L.latLngBounds(allPts.map(c => [c.lat, c.lng])), { padding: [50, 50], animate: false });
+          mapInstance.current.invalidateSize();
+          mapInstance.current.fitBounds(L.latLngBounds(allPts.map(c => [c.lat, c.lng])), { padding: [40, 40], animate: true });
         }
-      } catch (_) { /* ignore */ }
+      }, 100);
     }
   }, [
     pickupCoords?.lat, pickupCoords?.lng,
     deliveryCoords?.lat, deliveryCoords?.lng,
     currentCoords?.lat, currentCoords?.lng,
     orderAddress,
-  ]); // eslint-disable-line react-hooks/exhaustive-deps
+  ]);
 
   return (
     <div
