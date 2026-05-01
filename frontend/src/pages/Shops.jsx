@@ -71,7 +71,14 @@ export default function Shops() {
                 onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-5px)'; e.currentTarget.style.borderColor = 'var(--gold)'; }}
                 onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.borderColor = 'var(--parchment)'; }}
               >
-                <div style={{ height: 140, background: `url(${store.banner_url || 'https://images.unsplash.com/photo-1534723452862-4c874e70d6f2?w=400'}) center/cover` }} />
+                <div style={{ height: 140, overflow: 'hidden' }}>
+                  <img 
+                    src={store.banner_url || 'https://images.unsplash.com/photo-1534723452862-4c874e70d6f2?w=400'} 
+                    alt={store.name} 
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                    onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1534723452862-4c874e70d6f2?w=400'; }}
+                  />
+                </div>
                 <div style={{ padding: 20 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
                     <h3 style={{ fontSize: '1.1rem', fontWeight: 900, color: 'var(--brown-deep)', margin: 0 }}>{store.name}</h3>

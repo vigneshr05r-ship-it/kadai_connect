@@ -170,7 +170,14 @@ export default function Home() {
               ) : (
                 dbStores.map(s => (
                   <div key={s.id} onClick={() => navigate(`/store/${s.id}`)} style={{ flexShrink: 0, width: 160, background: '#fff', borderRadius: 24, border: '1.5px solid var(--parchment)', overflow: 'hidden', cursor: 'pointer', transition: '.3s', boxShadow: '0 6px 15px rgba(59,31,14,0.06)' }}>
-                    <div style={{ height: 100, background: `url(${s.banner_url || 'https://images.unsplash.com/photo-1534723452862-4c874e70d6f2?w=200'}) center/cover` }} />
+                    <div style={{ height: 100, overflow: 'hidden' }}>
+                      <img 
+                        src={s.banner_url || 'https://images.unsplash.com/photo-1534723452862-4c874e70d6f2?w=200'} 
+                        alt={s.name} 
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                        onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1534723452862-4c874e70d6f2?w=200'; }}
+                      />
+                    </div>
                     <div style={{ padding: 14, textAlign: 'center' }}>
                       <div style={{ fontSize: '.85rem', fontWeight: 800, color: 'var(--brown-deep)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{s.name}</div>
                       <div style={{ fontSize: '.75rem', color: 'var(--gold)', fontWeight: 800, marginTop: 6, background: 'var(--cream)', display: 'inline-block', padding: '2px 8px', borderRadius: 8 }}>⭐ {s.rating || '5.0'}</div>

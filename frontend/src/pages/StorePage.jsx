@@ -153,12 +153,18 @@ const StorePage = () => {
             src={store.banner_url || store.banner || 'https://images.unsplash.com/photo-1534723452862-4c874e70d6f2?w=1200'} 
             alt="Banner" 
             style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+            onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1534723452862-4c874e70d6f2?w=1200'; }}
            />
            <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, transparent, rgba(0,0,0,0.5))' }} />
            <div style={{ position: 'absolute', bottom: 20, left: 24, display: 'flex', alignItems: 'center', gap: 16 }}>
               <div style={{ width: 80, height: 80, background: '#fff', borderRadius: 20, padding: 4, border: '2px solid var(--gold)', overflow: 'hidden' }}>
                  {(store.logo_url || store.logo) 
-                  ? <img src={store.logo_url || store.logo} alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> 
+                  ? <img 
+                      src={store.logo_url || store.logo} 
+                      alt="Logo" 
+                      style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                      onError={(e) => { e.target.onerror = null; e.target.style.display = 'none'; e.target.parentNode.innerHTML = `<div style="height: 100%; display: flex; alignItems: center; justifyContent: center; fontSize: 2rem; fontWeight: 900">${store.name?.charAt(0)}</div>`; }}
+                    /> 
                   : <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2rem', fontWeight: 900 }}>{store.name?.charAt(0)}</div>}
               </div>
               <div>
@@ -212,7 +218,12 @@ const StorePage = () => {
             {filteredItems.map(item => (
               <div key={item.id} style={{ background: '#fff', border: '1.5px solid var(--parchment)', borderRadius: 24, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
                 <div style={{ height: 160, background: 'var(--cream)', position: 'relative' }}>
-                  <img src={item.image_url || item.image || `https://images.unsplash.com/photo-1585771724684-38269d6639fd?w=400`} alt={item.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  <img 
+                    src={item.image_url || item.image || `https://images.unsplash.com/photo-1585771724684-38269d6639fd?w=400`} 
+                    alt={item.name} 
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                    onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1585771724684-38269d6639fd?w=400'; }}
+                  />
                   <button 
                     onClick={() => toggleWishlist(item)}
                     style={{ position: 'absolute', top: 12, right: 12, width: 36, height: 36, borderRadius: '50%', background: 'rgba(255,255,255,0.9)', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: isInWishlist(item.id) ? 'var(--rust)' : 'var(--brown-mid)' }}

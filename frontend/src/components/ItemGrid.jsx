@@ -32,7 +32,18 @@ export default function ItemGrid({ items, type = 'product', onSelect, onEdit, on
           <div key={item.id} className="compact-card">
             {/* Image Container (1:1 Aspect Ratio) */}
             <div className="card-image-wrapper" onClick={() => onSelect ? onSelect(item) : navigate(`/${type}/${item.id}`)}>
-              <img src={imageUrl} alt={item.name} className="card-image" loading="lazy" />
+              <img 
+                src={imageUrl} 
+                alt={item.name} 
+                className="card-image" 
+                loading="lazy" 
+                onError={(e) => {
+                  e.target.onerror = null; 
+                  e.target.src = type === 'product' 
+                    ? 'https://images.unsplash.com/photo-1542838132-92c53300491e?w=400' 
+                    : 'https://images.unsplash.com/photo-1521791136064-7986c2920216?w=400';
+                }}
+              />
               
               {/* Type Badge */}
               <div className="card-badge">

@@ -85,7 +85,12 @@ export default function ProductDetail() {
           {/* Left: Images */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             <div style={{ width: '100%', aspectRatio: '1/1', background: '#fff', borderRadius: 32, overflow: 'hidden', border: '1.5px solid var(--parchment)', position: 'relative' }}>
-               <img src={images[activeImg]} alt={product.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+               <img 
+                src={images[activeImg]} 
+                alt={product.name} 
+                style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1542838132-92c53300491e?w=800'; }}
+               />
                <button 
                 onClick={() => toggleWishlist(product)}
                 style={{ position: 'absolute', top: 20, right: 20, width: 48, height: 48, borderRadius: '50%', background: '#fff', border: '1.5px solid var(--parchment)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: isInWishlist(product.id) ? 'var(--rust)' : 'var(--brown-mid)', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
@@ -101,7 +106,12 @@ export default function ProductDetail() {
                     onClick={() => setActiveImg(idx)}
                     style={{ width: 80, height: 80, borderRadius: 16, border: `2px solid ${activeImg === idx ? 'var(--gold)' : 'var(--parchment)'}`, overflow: 'hidden', cursor: 'pointer', transition: '.2s', opacity: activeImg === idx ? 1 : 0.6 }}
                   >
-                    <img src={img} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    <img 
+                      src={img} 
+                      alt="" 
+                      style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                      onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1542838132-92c53300491e?w=150'; }}
+                    />
                   </div>
                 ))}
               </div>

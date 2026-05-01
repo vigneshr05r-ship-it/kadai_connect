@@ -1299,7 +1299,14 @@ export default function ShopkeeperDashboard() {
         </div>
         <div style={{ padding: '12px 14px', borderBottom: '1px solid rgba(201,146,26,.2)', display: 'flex', alignItems: 'center', gap: 10 }}>
           <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'var(--gold)', display: 'grid', placeItems: 'center', fontSize: '1.1rem', border: '2px solid var(--gold-light)', flexShrink: 0, overflow: 'hidden' }}>
-            {storeData?.logo ? <img src={getImageUrl(storeData.logo)} alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }}/> : '🏪'}
+            {storeData?.logo 
+              ? <img 
+                  src={getImageUrl(storeData.logo)} 
+                  alt="Logo" 
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                  onError={(e) => { e.target.onerror = null; e.target.style.display = 'none'; e.target.parentNode.innerHTML = '🏪'; }}
+                /> 
+              : '🏪'}
           </div>
           <div>
             <div style={{ fontSize: '.75rem', color: 'var(--cream)', fontWeight: 600 }}>{storeData?.name || shopName}</div>
@@ -1367,7 +1374,14 @@ export default function ShopkeeperDashboard() {
 
             <button onClick={() => setSection('settings')} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10 }}>
               <div style={{ width: 34, height: 34, borderRadius: '50%', background: 'var(--gold)', display: 'grid', placeItems: 'center', border: '1.5px solid var(--gold-light)', boxShadow: '0 2px 8px rgba(0,0,0,0.1)', overflow: 'hidden' }}>
-                {storeData?.logo ? <img src={getImageUrl(storeData.logo)} alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }}/> : <UserCircle size={20} color="var(--brown-deep)" />}
+                {storeData?.logo 
+                  ? <img 
+                      src={getImageUrl(storeData.logo)} 
+                      alt="Logo" 
+                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                      onError={(e) => { e.target.onerror = null; e.target.style.display = 'none'; e.target.parentNode.innerHTML = '👤'; }}
+                    /> 
+                  : <UserCircle size={20} color="var(--brown-deep)" />}
               </div>
               <span className="profile-name" style={{ fontSize: '.75rem', fontWeight: 700, color: 'var(--brown-deep)' }}>{storeData?.name || firstName}</span>
             </button>
