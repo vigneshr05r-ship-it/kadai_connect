@@ -117,6 +117,10 @@ MEDIA_ROOT = BASE_DIR / 'media'
 
 # Cloudinary Storage Settings (Modern Django 4.2+ STORAGES syntax)
 if not DEBUG or os.environ.get('CLOUDINARY_CLOUD_NAME'):
+    # Backward compatibility for django-cloudinary-storage
+    DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
+    STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
+    
     STORAGES = {
         "default": {
             "BACKEND": "cloudinary_storage.storage.MediaCloudinaryStorage",
@@ -131,6 +135,9 @@ if not DEBUG or os.environ.get('CLOUDINARY_CLOUD_NAME'):
         'API_SECRET': os.environ.get('CLOUDINARY_API_SECRET'),
     }
 else:
+    DEFAULT_FILE_STORAGE = 'django.core.files.storage.FileSystemStorage'
+    STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
+    
     STORAGES = {
         "default": {
             "BACKEND": "django.core.files.storage.FileSystemStorage",
