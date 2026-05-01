@@ -79,8 +79,11 @@ class CategoryViewSet(viewsets.ModelViewSet):
 
     def list(self, request, *args, **kwargs):
         # Auto-seed if empty
-        if not Category.objects.exists():
-            self._seed_categories()
+        try:
+            if not Category.objects.exists():
+                self._seed_categories()
+        except Exception as e:
+            print(f"Seeding error: {e}")
         return super().list(request, *args, **kwargs)
 
     def _seed_categories(self):

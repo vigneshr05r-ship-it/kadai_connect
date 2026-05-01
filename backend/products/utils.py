@@ -16,6 +16,7 @@ def resolve_category(request_data, default_type='product'):
         # Normalize and check duplicate
         normalized_name = new_name.capitalize()
         parent_id = request_data.get('parent')
+        if not parent_id: parent_id = None
         
         existing = Category.objects.filter(name__iexact=normalized_name, parent_id=parent_id).first()
         if existing:
