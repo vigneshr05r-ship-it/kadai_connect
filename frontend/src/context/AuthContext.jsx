@@ -6,7 +6,7 @@ const BASE_URL = (import.meta.env.VITE_API_URL || 'https://kadai-connect.onrende
 
 // Silent ping to wake Render free-tier instance before user interacts
 const pingBackend = () => {
-  fetch(`${BASE_URL}/api/token/`, { method: 'HEAD' }).catch(() => {});
+  fetch(`${BASE_URL}/api/ping/`, { method: 'GET' }).catch(() => {});
 };
 
 export const AuthProvider = ({ children }) => {
@@ -21,12 +21,12 @@ export const AuthProvider = ({ children }) => {
   React.useEffect(() => {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 30000);
-    fetch(`${BASE_URL}/api/token/`, { method: 'HEAD', signal: controller.signal })
+    fetch(`${BASE_URL}/api/ping/`, { method: 'GET', signal: controller.signal })
       .then(() => setBackendStatus('ok'))
       .catch(() => {
         // Try one more time after 5s (Render can take up to 30s to spin up)
         setTimeout(() => {
-          fetch(`${BASE_URL}/api/token/`, { method: 'HEAD' })
+          fetch(`${BASE_URL}/api/ping/`, { method: 'GET' })
             .then(() => setBackendStatus('ok'))
             .catch(() => setBackendStatus('down'));
         }, 5000);
