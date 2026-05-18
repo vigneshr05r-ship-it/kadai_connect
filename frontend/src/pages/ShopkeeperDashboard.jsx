@@ -2038,7 +2038,7 @@ export default function ShopkeeperDashboard() {
                     {/* Logo Upload */}
                     <div style={{ textAlign: 'center' }}>
                       <div style={{ width: 80, height: 80, borderRadius: 12, border: '2px solid var(--gold)', background: 'var(--cream)', overflow: 'hidden', marginBottom: 8, position: 'relative' }}>
-                        {storeEdit.logo ? <img src={URL.createObjectURL(storeEdit.logo)} style={{ width: '100%', height: '100%', objectFit: 'cover' }}/> : (storeData?.logo ? <img src={getImageUrl(storeData.logo)} style={{ width: '100%', height: '100%', objectFit: 'cover' }}/> : <div style={{ height: '100%', display: 'grid', placeItems: 'center', fontSize: '2rem' }}>🏪</div>)}
+                        {storeEdit.logo ? <img src={URL.createObjectURL(storeEdit.logo)} style={{ width: '100%', height: '100%', objectFit: 'cover' }}/> : (storeData?.logo_url || storeData?.logo ? <img src={storeData.logo_url || getImageUrl(storeData.logo)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={(e) => { e.target.onerror = null; e.target.style.display = 'none'; e.target.parentNode.innerHTML = '<div style="height:100%;display:grid;place-items:center;font-size:2rem">🏪</div>'; }}/> : <div style={{ height: '100%', display: 'grid', placeItems: 'center', fontSize: '2rem' }}>🏪</div>)}
                       </div>
                       <label style={{ ...S.btnPrimary, padding: '5px 10px', fontSize: '.65rem', display: 'inline-flex', opacity: isEditingProfile ? 1 : 0.5 }}>
                         {isTa ? 'லோகோ' : 'Logo'} <input type="file" hidden accept="image/*" disabled={!isEditingProfile} onChange={e => setStoreEdit({...storeEdit, logo: e.target.files[0]})}/>
@@ -2046,7 +2046,17 @@ export default function ShopkeeperDashboard() {
                     </div>
                     {/* Banner Upload */}
                     <div style={{ flex: 1, minWidth: 260 }}>
-                      <div style={{ height: 140, borderRadius: 12, border: '2px solid var(--parchment)', background: storeEdit.banner ? `url(${URL.createObjectURL(storeEdit.banner)}) center/cover no-repeat` : (storeData?.banner ? `url(${getImageUrl(storeData.banner)}) center/cover no-repeat` : 'var(--brown-deep)'), marginBottom: 8, opacity: isEditingProfile ? 1 : 0.6, boxShadow: 'inset 0 0 40px rgba(0,0,0,0.2)' }}></div>
+                      <div style={{ height: 140, borderRadius: 12, border: '2px solid var(--parchment)', overflow: 'hidden', marginBottom: 8, opacity: isEditingProfile ? 1 : 0.6, boxShadow: 'inset 0 0 40px rgba(0,0,0,0.2)', background: 'var(--brown-deep)', position: 'relative' }}>
+                        {storeEdit.banner ? (
+                          <img src={URL.createObjectURL(storeEdit.banner)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="Banner preview" />
+                        ) : (storeData?.banner_url || storeData?.banner) ? (
+                          <img src={storeData.banner_url || getImageUrl(storeData.banner)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="Store banner"
+                            onError={(e) => { e.target.onerror = null; e.target.style.display = 'none'; }}
+                          />
+                        ) : (
+                          <div style={{ height: '100%', display: 'grid', placeItems: 'center', color: 'var(--gold)', fontSize: '.8rem', fontWeight: 700, opacity: 0.5 }}>🖼️ {isTa ? 'பேனர் இல்லை' : 'No Banner'}</div>
+                        )}
+                      </div>
                       <label style={{ ...S.btnPrimary, padding: '5px 10px', fontSize: '.65rem', display: 'inline-flex', opacity: isEditingProfile ? 1 : 0.5 }}>
                         {isTa ? 'பேனர்' : 'Banner'} <input type="file" hidden accept="image/*" disabled={!isEditingProfile} onChange={e => setStoreEdit({...storeEdit, banner: e.target.files[0]})}/>
                       </label>
@@ -2252,7 +2262,7 @@ export default function ShopkeeperDashboard() {
 
             <div style={{ flex: 1, background: 'var(--cream-dark)', position: 'relative', overflow: 'hidden', height: window.innerWidth < 768 ? 300 : 'auto' }}>
               {(selectedProduct.image_url || selectedProduct.image) ? (
-                <img src={getImageUrl(selectedProduct.image_url || selectedProduct.image)} alt={selectedProduct.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                <img src={getImageUrl(selectedProduct.image_url || selectedProduct.image)} alt={selectedProduct.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={(e) => { e.target.onerror = null; e.target.style.display = 'none'; e.target.parentNode.innerHTML = `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:5rem">${selectedProduct.emoji || '📦'}</div>`; }} />
               ) : (
                 <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '5rem' }}>
                   {selectedProduct.emoji || '📦'}

@@ -101,9 +101,10 @@ export default function Services() {
               </div>
               <div style={{ width: 120, height: 120, position: 'relative' }}>
                 <img 
-                  src={service.image_url} 
+                  src={service.image_url || 'https://images.unsplash.com/photo-1521791136064-7986c2920216?w=300'} 
                   alt={service.name} 
                   style={{ width: '100%', height: '100%', borderRadius: 24, objectFit: 'cover', border: '2px solid var(--parchment)' }} 
+                  onError={(e) => { e.target.onerror = null; e.target.src = 'https://images.unsplash.com/photo-1521791136064-7986c2920216?w=300'; }}
                 />
               </div>
             </div>

@@ -97,7 +97,7 @@ export default function Wishlist() {
                   borderBottom: '1px solid var(--parchment)'
                 }}>
                   {(p.image_url || p.image)
-                    ? <img src={p.image_url || p.image} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    ? <img src={p.image_url || p.image} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={(e) => { e.target.onerror = null; e.target.src = 'https://images.unsplash.com/photo-1542838132-92c53300491e?w=400'; }} />
                     : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2.5rem' }}>📦</div>}
                   
                   <button onClick={() => removeFromWishlist(p)} style={{
