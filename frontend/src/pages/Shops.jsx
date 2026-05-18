@@ -76,7 +76,7 @@ export default function Shops() {
                     src={store.banner_url || 'https://images.unsplash.com/photo-1534723452862-4c874e70d6f2?w=400'} 
                     alt={store.name} 
                     style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
-                    onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1534723452862-4c874e70d6f2?w=400'; }}
+                    onError={(e) => { e.target.onerror = null; e.target.src = 'https://images.unsplash.com/photo-1534723452862-4c874e70d6f2?w=400'; }}
                   />
                 </div>
                 <div style={{ padding: 20 }}>

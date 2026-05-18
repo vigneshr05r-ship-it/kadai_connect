@@ -175,7 +175,7 @@ export default function Home() {
                         src={s.banner_url || 'https://images.unsplash.com/photo-1534723452862-4c874e70d6f2?w=200'} 
                         alt={s.name} 
                         style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
-                        onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1534723452862-4c874e70d6f2?w=200'; }}
+                        onError={(e) => { e.target.onerror = null; e.target.src = 'https://images.unsplash.com/photo-1534723452862-4c874e70d6f2?w=200'; }}
                       />
                     </div>
                     <div style={{ padding: 14, textAlign: 'center' }}>

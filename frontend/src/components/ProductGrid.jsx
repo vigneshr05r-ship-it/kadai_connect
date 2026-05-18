@@ -46,7 +46,7 @@ export default function ProductGrid({ products, onSelect, onEdit, onDelete, onAd
                 src={imgSrc}
                 alt={p.name} 
                 style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
-                onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1542838132-92c53300491e?w=400'; }}
+                onError={(e) => { e.target.onerror = null; e.target.src = 'https://images.unsplash.com/photo-1542838132-92c53300491e?w=400'; }}
               />
               {badge && (
                 <div style={{ position: 'absolute', top: 10, left: 10, background: badge.bg, color: badge.color, padding: '4px 8px', borderRadius: 8, fontSize: '.65rem', fontWeight: 800, textTransform: 'uppercase' }}>

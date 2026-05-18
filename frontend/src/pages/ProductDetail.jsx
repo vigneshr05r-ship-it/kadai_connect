@@ -89,7 +89,7 @@ export default function ProductDetail() {
                 src={images[activeImg]} 
                 alt={product.name} 
                 style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
-                onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1542838132-92c53300491e?w=800'; }}
+                onError={(e) => { e.target.onerror = null; e.target.src = 'https://images.unsplash.com/photo-1542838132-92c53300491e?w=800'; }}
                />
                <button 
                 onClick={() => toggleWishlist(product)}
@@ -110,7 +110,7 @@ export default function ProductDetail() {
                       src={img} 
                       alt="" 
                       style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
-                      onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1542838132-92c53300491e?w=150'; }}
+                      onError={(e) => { e.target.onerror = null; e.target.src = 'https://images.unsplash.com/photo-1542838132-92c53300491e?w=150'; }}
                     />
                   </div>
                 ))}

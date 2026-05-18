@@ -153,7 +153,7 @@ const StorePage = () => {
             src={store.banner_url || store.banner || 'https://images.unsplash.com/photo-1534723452862-4c874e70d6f2?w=1200'} 
             alt="Banner" 
             style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
-            onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1534723452862-4c874e70d6f2?w=1200'; }}
+            onError={(e) => { e.target.onerror = null; e.target.src = 'https://images.unsplash.com/photo-1534723452862-4c874e70d6f2?w=1200'; }}
            />
            <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, transparent, rgba(0,0,0,0.5))' }} />
            <div style={{ position: 'absolute', bottom: 20, left: 24, display: 'flex', alignItems: 'center', gap: 16 }}>
@@ -170,7 +170,7 @@ const StorePage = () => {
               <div>
                 <h2 style={{ fontSize: '1.8rem', fontWeight: 900, color: '#fff', margin: 0 }}>{isTa ? (store.name_ta || store.name) : store.name}</h2>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
-                  <div style={{ background: 'var(--gold)', color: 'var(--brown-deep)', padding: '2px 8px', borderRadius: 8, fontSize: '.75rem', fontWeight: 900, display: 'flex', alignItems: 'center', gap: 4 }}>
+                   <div style={{ background: 'var(--gold)', color: 'var(--brown-deep)', padding: '2px 8px', borderRadius: 8, fontSize: '.75rem', fontWeight: 900, display: 'flex', alignItems: 'center', gap: 4 }}>
                     <Star size={12} fill="currentColor" /> {store.rating || '5.0'}
                   </div>
                   <span style={{ color: '#fff', fontSize: '.75rem', fontWeight: 700, opacity: 0.9 }}>{store.location || 'Local Area'}</span>
@@ -222,7 +222,7 @@ const StorePage = () => {
                     src={item.image_url || item.image || `https://images.unsplash.com/photo-1585771724684-38269d6639fd?w=400`} 
                     alt={item.name} 
                     style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
-                    onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1585771724684-38269d6639fd?w=400'; }}
+                    onError={(e) => { e.target.onerror = null; e.target.src = 'https://images.unsplash.com/photo-1585771724684-38269d6639fd?w=400'; }}
                   />
                   <button 
                     onClick={() => toggleWishlist(item)}

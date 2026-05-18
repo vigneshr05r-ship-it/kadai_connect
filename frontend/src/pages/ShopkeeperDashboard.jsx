@@ -2338,11 +2338,11 @@ function ProductGrid({ products, onEdit, onDelete, onAdd, onSelect }) {
         <div key={p.id} className="shop-product-card" style={{ background: 'var(--cream)', border: '1.5px solid var(--parchment)', borderRadius: 8, overflow: 'hidden', boxShadow: '2px 3px 10px var(--shadow)', transition: '.25s' }}>
           <div onClick={() => onSelect && onSelect(p)} style={{ height: 160, background: 'var(--cream-dark)', display: 'flex', alignItems: 'center', justifyContent: 'center', borderBottom: '1px solid var(--parchment)', fontSize: '2.8rem', overflow: 'hidden', cursor: 'pointer' }}>
             {p.image_url ? (
-              <img src={p.image_url} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={e => { e.target.style.display = 'none'; }}/>
+              <img src={p.image_url} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={e => { e.target.onerror = null; e.target.style.display = 'none'; }}/>
             ) : p.image ? (
-              <img src={getImageUrl(p.image)} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={e => { e.target.style.display = 'none'; }}/>
+              <img src={getImageUrl(p.image)} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={e => { e.target.onerror = null; e.target.style.display = 'none'; }}/>
             ) : p.imgUrl ? (
-              <img src={getImageUrl(p.imgUrl)} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={e => { e.target.style.display = 'none'; }}/>
+              <img src={getImageUrl(p.imgUrl)} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={e => { e.target.onerror = null; e.target.style.display = 'none'; }}/>
             ) : (
               <span style={{ transition: '.2s' }}>{p.emoji || (p.category === 'Services' ? '✂️' : '📦')}</span>
             )}
