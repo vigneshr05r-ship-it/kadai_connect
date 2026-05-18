@@ -420,7 +420,7 @@ const FEATURES = [
 
 // ------ MAIN LOGIN / LANDING PAGE ------
 const Login = () => {
-  const { login, apiFetch } = useAuth();
+  const { login, apiFetch, backendStatus } = useAuth();
   const navigate = useNavigate();
   const { i18n } = useTranslation();
   const [openModal, setOpenModal] = useState(null); // 'shopkeeper' | 'customer' | 'delivery'
@@ -453,6 +453,22 @@ const Login = () => {
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--cream)', position: 'relative' }}>
+
+      {/* ── Render cold-start banner ── */}
+      {(backendStatus === 'waking' || backendStatus === 'down') && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, zIndex: 9999,
+          background: backendStatus === 'down' ? '#c0392b' : '#d4a017',
+          color: '#fff', textAlign: 'center',
+          padding: '10px 20px', fontSize: '.85rem', fontWeight: 700,
+          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
+        }}>
+          {backendStatus === 'waking'
+            ? <><span style={{ animation: 'spin 1s linear infinite', display: 'inline-block' }}>⏳</span> Server is waking up… Login will be available in ~15 seconds.</>
+            : <>⚠️ Server is currently unreachable. Please wait and try again.</>
+          }
+        </div>
+      )}
       {/* Top Bar */}
       <div style={{ position: 'fixed', top: 20, right: 20, zIndex: 100, display: 'flex', gap: 10 }}>
         <div style={{ background: 'var(--parchment)', padding: 4, borderRadius: 12, display: 'flex', border: '1px solid var(--parchment)' }}>

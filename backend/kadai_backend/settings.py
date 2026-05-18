@@ -149,21 +149,37 @@ else:
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# CORS
-CORS_ALLOW_ALL_ORIGINS = True
+# CORS — IMPORTANT: CORS_ALLOW_ALL_ORIGINS=True conflicts with CORS_ALLOW_CREDENTIALS=True.
+# Browsers (Chrome/Firefox) will block credentialed cross-origin requests when the
+# server returns `Access-Control-Allow-Origin: *`.  We must use explicit origins instead.
+CORS_ALLOW_ALL_ORIGINS = False
 CORS_ALLOW_CREDENTIALS = True
 
-# Add typical Vercel deployment URL to allowed origins explicitly
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",
     "http://localhost:3000",
+    "http://127.0.0.1:5173",
+    "http://127.0.0.1:3000",
     "https://kadai-connect.vercel.app",
     "https://kadai-connect-vigneshr05r-ship-its-projects.vercel.app",
 ]
 
-# If CORS_ALLOW_ALL_ORIGINS is True, CORS_ALLOW_CREDENTIALS can cause issues with some browsers/frameworks
-# if the origin is not explicitly in CORS_ALLOWED_ORIGINS. We will keep CORS_ALLOW_ALL_ORIGINS = True
-# but also populate CORS_ALLOWED_ORIGINS.
+# Allow any Vercel preview-deployment URL (*.vercel.app)
+CORS_ALLOWED_ORIGIN_REGEXES = [
+    r"^https://.*\.vercel\.app$",
+]
+
+CORS_ALLOW_HEADERS = [
+    'accept',
+    'accept-encoding',
+    'authorization',
+    'content-type',
+    'dnt',
+    'origin',
+    'user-agent',
+    'x-csrftoken',
+    'x-requested-with',
+]
 
 
 REST_FRAMEWORK = {
@@ -180,9 +196,9 @@ REST_FRAMEWORK = {
         'rest_framework.throttling.UserRateThrottle'
     ],
     'DEFAULT_THROTTLE_RATES': {
-        'anon': '100/day',
-        'user': '1000/day',
-        'burst': '60/minute',
+        'anon': '500/day',
+        'user': '2000/day',
+        'burst': '120/minute',
     }
 }
 
