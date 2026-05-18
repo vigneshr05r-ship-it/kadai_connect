@@ -11,6 +11,7 @@ import {
 import MainLayout from '../components/MainLayout';
 import ProductGrid from '../components/ProductGrid';
 import { MOCK_PRODUCTS } from '../data/mockData';
+import { PRODUCT_PLACEHOLDER } from '../utils/placeholders';
 
 export default function ProductDetail() {
   const { id } = useParams();
@@ -75,7 +76,7 @@ export default function ProductDetail() {
     </MainLayout>
   );
 
-  const images = product.images?.length > 0 ? product.images : [product.image_url || product.image || 'https://images.unsplash.com/photo-1542838132-92c53300491e?w=800'];
+  const images = product.images?.length > 0 ? product.images : [product.image_url || product.image || PRODUCT_PLACEHOLDER];
 
   return (
     <MainLayout title={isTa ? (product.name_ta || product.name) : product.name}>
@@ -89,7 +90,7 @@ export default function ProductDetail() {
                 src={images[activeImg]} 
                 alt={product.name} 
                 style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
-                onError={(e) => { e.target.onerror = null; e.target.src = 'https://images.unsplash.com/photo-1542838132-92c53300491e?w=800'; }}
+                onError={(e) => { e.target.onerror = null; e.target.src = PRODUCT_PLACEHOLDER; }}
                />
                <button 
                 onClick={() => toggleWishlist(product)}
@@ -110,7 +111,7 @@ export default function ProductDetail() {
                       src={img} 
                       alt="" 
                       style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
-                      onError={(e) => { e.target.onerror = null; e.target.src = 'https://images.unsplash.com/photo-1542838132-92c53300491e?w=150'; }}
+                      onError={(e) => { e.target.onerror = null; e.target.src = PRODUCT_PLACEHOLDER; }}
                     />
                   </div>
                 ))}

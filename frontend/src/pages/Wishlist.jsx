@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Heart, ShoppingCart, Star, Trash2 } from 'lucide-react';
 import MainLayout from '../components/MainLayout';
+import { PRODUCT_PLACEHOLDER } from '../utils/placeholders';
 
 export default function Wishlist() {
   const navigate = useNavigate();
@@ -97,7 +98,7 @@ export default function Wishlist() {
                   borderBottom: '1px solid var(--parchment)'
                 }}>
                   {(p.image_url || p.image)
-                    ? <img src={p.image_url || p.image} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={(e) => { e.target.onerror = null; e.target.src = 'https://images.unsplash.com/photo-1542838132-92c53300491e?w=400'; }} />
+                    ? <img src={p.image_url || p.image} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={(e) => { e.target.onerror = null; e.target.src = PRODUCT_PLACEHOLDER; }} />
                     : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2.5rem' }}>📦</div>}
                   
                   <button onClick={() => removeFromWishlist(p)} style={{

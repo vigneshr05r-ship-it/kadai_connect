@@ -39,6 +39,7 @@ import { useVoiceAssistant } from '../hooks/useVoiceAssistant';
 import { parseProductVoiceCommand } from '../utils/aiUtils';
 import ItemGrid from '../components/ItemGrid';
 import NotificationPanel from '../components/NotificationPanel';
+import { STORE_BANNER_PLACEHOLDER, STORE_LOGO_PLACEHOLDER, PRODUCT_PLACEHOLDER, SERVICE_PLACEHOLDER } from '../utils/placeholders';
 
 const S = {
   sidebar: { width: 210, minHeight: '100vh', background: 'var(--brown-deep)', display: 'flex', flexDirection: 'column', position: 'fixed', top: 0, left: 0, bottom: 0, zIndex: 50, borderRight: '2px solid var(--gold)', transition: '.3s' },
@@ -2338,11 +2339,11 @@ function ProductGrid({ products, onEdit, onDelete, onAdd, onSelect }) {
         <div key={p.id} className="shop-product-card" style={{ background: 'var(--cream)', border: '1.5px solid var(--parchment)', borderRadius: 8, overflow: 'hidden', boxShadow: '2px 3px 10px var(--shadow)', transition: '.25s' }}>
           <div onClick={() => onSelect && onSelect(p)} style={{ height: 160, background: 'var(--cream-dark)', display: 'flex', alignItems: 'center', justifyContent: 'center', borderBottom: '1px solid var(--parchment)', fontSize: '2.8rem', overflow: 'hidden', cursor: 'pointer' }}>
             {p.image_url ? (
-              <img src={p.image_url} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={e => { e.target.onerror = null; e.target.style.display = 'none'; }}/>
+              <img src={p.image_url} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={e => { e.target.onerror = null; e.target.src = PRODUCT_PLACEHOLDER; }}/>
             ) : p.image ? (
-              <img src={getImageUrl(p.image)} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={e => { e.target.onerror = null; e.target.style.display = 'none'; }}/>
+              <img src={getImageUrl(p.image)} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={e => { e.target.onerror = null; e.target.src = PRODUCT_PLACEHOLDER; }}/>
             ) : p.imgUrl ? (
-              <img src={getImageUrl(p.imgUrl)} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={e => { e.target.onerror = null; e.target.style.display = 'none'; }}/>
+              <img src={getImageUrl(p.imgUrl)} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={e => { e.target.onerror = null; e.target.src = PRODUCT_PLACEHOLDER; }}/>
             ) : (
               <span style={{ transition: '.2s' }}>{p.emoji || (p.category === 'Services' ? '✂️' : '📦')}</span>
             )}

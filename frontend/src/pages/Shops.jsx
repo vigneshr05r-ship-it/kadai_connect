@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { Star, MapPin, ChevronLeft, Search } from 'lucide-react';
 import MainLayout from '../components/MainLayout';
 import { STORES } from '../data/mockData';
+import { STORE_BANNER_PLACEHOLDER } from '../utils/placeholders';
 
 export default function Shops() {
   const { apiFetch } = useAuth();
@@ -73,10 +74,10 @@ export default function Shops() {
               >
                 <div style={{ height: 140, overflow: 'hidden' }}>
                   <img 
-                    src={store.banner_url || 'https://images.unsplash.com/photo-1534723452862-4c874e70d6f2?w=400'} 
+                    src={store.banner_url || STORE_BANNER_PLACEHOLDER} 
                     alt={store.name} 
                     style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
-                    onError={(e) => { e.target.onerror = null; e.target.src = 'https://images.unsplash.com/photo-1534723452862-4c874e70d6f2?w=400'; }}
+                    onError={(e) => { e.target.onerror = null; e.target.src = STORE_BANNER_PLACEHOLDER; }}
                   />
                 </div>
                 <div style={{ padding: 20 }}>

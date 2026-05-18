@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { ShoppingCart, Heart, Store, ExternalLink } from 'lucide-react';
 import { useCart } from '../context/CartContext';
+import { PRODUCT_PLACEHOLDER, SERVICE_PLACEHOLDER } from '../utils/placeholders';
 
 export default function ItemGrid({ items, type = 'product', onSelect, onEdit, onDelete, onAdd }) {
   const { i18n } = useTranslation();
@@ -24,8 +25,8 @@ export default function ItemGrid({ items, type = 'product', onSelect, onEdit, on
 
         if (!imageUrl) {
           imageUrl = type === 'product' 
-            ? 'https://images.unsplash.com/photo-1542838132-92c53300491e?w=400' 
-            : 'https://images.unsplash.com/photo-1521791136064-7986c2920216?w=400';
+            ? PRODUCT_PLACEHOLDER 
+            : SERVICE_PLACEHOLDER;
         }
         
         return (
@@ -40,8 +41,8 @@ export default function ItemGrid({ items, type = 'product', onSelect, onEdit, on
                 onError={(e) => {
                   e.target.onerror = null; 
                   e.target.src = type === 'product' 
-                    ? 'https://images.unsplash.com/photo-1542838132-92c53300491e?w=400' 
-                    : 'https://images.unsplash.com/photo-1521791136064-7986c2920216?w=400';
+                    ? PRODUCT_PLACEHOLDER 
+                    : SERVICE_PLACEHOLDER;
                 }}
               />
               

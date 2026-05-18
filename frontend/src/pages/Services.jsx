@@ -6,6 +6,7 @@ import MainLayout from '../components/MainLayout';
 import BookingModal from '../components/BookingModal';
 import { Star, Clock, MapPin, ShieldCheck, ChevronLeft, ArrowRight, Zap, Info, ArrowLeft } from 'lucide-react';
 import { MOCK_SERVICES, STORES } from '../data/mockData';
+import { SERVICE_PLACEHOLDER } from '../utils/placeholders';
 
 export default function Services() {
   const { apiFetch } = useAuth();
@@ -101,10 +102,10 @@ export default function Services() {
               </div>
               <div style={{ width: 120, height: 120, position: 'relative' }}>
                 <img 
-                  src={service.image_url || 'https://images.unsplash.com/photo-1521791136064-7986c2920216?w=300'} 
+                  src={service.image_url || SERVICE_PLACEHOLDER} 
                   alt={service.name} 
                   style={{ width: '100%', height: '100%', borderRadius: 24, objectFit: 'cover', border: '2px solid var(--parchment)' }} 
-                  onError={(e) => { e.target.onerror = null; e.target.src = 'https://images.unsplash.com/photo-1521791136064-7986c2920216?w=300'; }}
+                  onError={(e) => { e.target.onerror = null; e.target.src = SERVICE_PLACEHOLDER; }}
                 />
               </div>
             </div>

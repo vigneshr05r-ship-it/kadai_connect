@@ -11,6 +11,7 @@ import OrderTracker from '../components/OrderTracker';
 import MainLayout from '../components/MainLayout';
 import BookingModal from '../components/BookingModal';
 import { ProductSkeleton, CategorySkeleton } from '../components/Skeleton';
+import { STORE_BANNER_PLACEHOLDER } from '../utils/placeholders';
 
 export default function Home() {
   const { user, apiFetch } = useAuth();
@@ -172,10 +173,10 @@ export default function Home() {
                   <div key={s.id} onClick={() => navigate(`/store/${s.id}`)} style={{ flexShrink: 0, width: 160, background: '#fff', borderRadius: 24, border: '1.5px solid var(--parchment)', overflow: 'hidden', cursor: 'pointer', transition: '.3s', boxShadow: '0 6px 15px rgba(59,31,14,0.06)' }}>
                     <div style={{ height: 100, overflow: 'hidden' }}>
                       <img 
-                        src={s.banner_url || 'https://images.unsplash.com/photo-1534723452862-4c874e70d6f2?w=200'} 
+                        src={s.banner_url || STORE_BANNER_PLACEHOLDER} 
                         alt={s.name} 
                         style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
-                        onError={(e) => { e.target.onerror = null; e.target.src = 'https://images.unsplash.com/photo-1534723452862-4c874e70d6f2?w=200'; }}
+                        onError={(e) => { e.target.onerror = null; e.target.src = STORE_BANNER_PLACEHOLDER; }}
                       />
                     </div>
                     <div style={{ padding: 14, textAlign: 'center' }}>

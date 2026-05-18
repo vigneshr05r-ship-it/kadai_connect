@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import { useTranslation } from 'react-i18next';
 import BookingModal from '../components/BookingModal';
+import { STORE_BANNER_PLACEHOLDER, STORE_LOGO_PLACEHOLDER, PRODUCT_PLACEHOLDER, SERVICE_PLACEHOLDER } from '../utils/placeholders';
 
 const MOCK_STORE_DATA = {
   id: 'mock-1',
@@ -150,10 +151,10 @@ const StorePage = () => {
         {/* Banner Section */}
         <div style={{ position: 'relative', height: 200, width: '100%', overflow: 'hidden', borderRadius: 32, marginBottom: 40 }}>
            <img 
-            src={store.banner_url || store.banner || 'https://images.unsplash.com/photo-1534723452862-4c874e70d6f2?w=1200'} 
+            src={store.banner_url || store.banner || STORE_BANNER_PLACEHOLDER} 
             alt="Banner" 
             style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
-            onError={(e) => { e.target.onerror = null; e.target.src = 'https://images.unsplash.com/photo-1534723452862-4c874e70d6f2?w=1200'; }}
+            onError={(e) => { e.target.onerror = null; e.target.src = STORE_BANNER_PLACEHOLDER; }}
            />
            <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, transparent, rgba(0,0,0,0.5))' }} />
            <div style={{ position: 'absolute', bottom: 20, left: 24, display: 'flex', alignItems: 'center', gap: 16 }}>
@@ -219,10 +220,10 @@ const StorePage = () => {
               <div key={item.id} style={{ background: '#fff', border: '1.5px solid var(--parchment)', borderRadius: 24, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
                 <div style={{ height: 160, background: 'var(--cream)', position: 'relative' }}>
                   <img 
-                    src={item.image_url || item.image || `https://images.unsplash.com/photo-1585771724684-38269d6639fd?w=400`} 
+                    src={item.image_url || item.image || (activeTab === 'products' ? PRODUCT_PLACEHOLDER : SERVICE_PLACEHOLDER)} 
                     alt={item.name} 
                     style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
-                    onError={(e) => { e.target.onerror = null; e.target.src = 'https://images.unsplash.com/photo-1585771724684-38269d6639fd?w=400'; }}
+                    onError={(e) => { e.target.onerror = null; e.target.src = activeTab === 'products' ? PRODUCT_PLACEHOLDER : SERVICE_PLACEHOLDER; }}
                   />
                   <button 
                     onClick={() => toggleWishlist(item)}
