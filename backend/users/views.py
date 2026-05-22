@@ -11,6 +11,7 @@ from .serializers import UserSerializer
 from stores.models import Store
 from django.db import transaction
 import traceback
+from rest_framework_simplejwt.tokens import RefreshToken
 
 class UserViewSet(viewsets.ModelViewSet):
     queryset = User.objects.all()
@@ -24,7 +25,7 @@ class UserViewSet(viewsets.ModelViewSet):
         return queryset
     
     def get_permissions(self):
-        if self.action in ['create', 'forgot_password', 'verify_otp', 'reset_password']:
+        if self.action in ['create', 'forgot_password', 'verify_otp', 'reset_password', 'demo_login']:
             return [permissions.AllowAny()]
         return [permissions.IsAuthenticated()]
 
@@ -60,6 +61,28 @@ class UserViewSet(viewsets.ModelViewSet):
                 "error": "Account creation failed", 
                 "detail": "Please check your inputs or try again later."
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    @action(detail=False, methods=['post'], url_path='demo-login', permission_classes=[permissions.AllowAny])
+    def demo_login(self, request):
+        role = request.data.get('role')
+        if role not in ['customer', 'shopkeeper', 'delivery']:
+            return Response({'error': 'Invalid role specified for demo.'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        email_map = {
+            'customer': 'demo_customer@mail.com',
+            'shopkeeper': 'demo_shopkeeper@mail.com',
+            'delivery': 'demo_delivery@mail.com'
+        }
+        
+        user = User.objects.filter(email=email_map[role]).first()
+        if not user:
+            return Response({'error': f'Demo {role} account not initialized. Please run the seeder.'}, status=status.HTTP_404_NOT_FOUND)
+        
+        refresh = RefreshToken.for_user(user)
+        return Response({
+            'refresh': str(refresh),
+            'access': str(refresh.access_token),
+        }, status=status.HTTP_200_OK)
 
     @action(detail=False, methods=['post'], url_path='forgot-password', permission_classes=[permissions.AllowAny])
     def forgot_password(self, request):

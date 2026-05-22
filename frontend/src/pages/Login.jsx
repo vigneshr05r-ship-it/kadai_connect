@@ -424,6 +424,7 @@ const Login = () => {
   const navigate = useNavigate();
   const { i18n } = useTranslation();
   const [openModal, setOpenModal] = useState(null); // 'shopkeeper' | 'customer' | 'delivery'
+  const [demoLoading, setDemoLoading] = useState(false);
   const lang = i18n.language.startsWith('ta') ? 'ta' : 'en';
 
   const LANG = {
@@ -449,6 +450,42 @@ const Login = () => {
     if (userData.role === 'shopkeeper') navigate('/shopkeeper');
     else if (userData.role === 'delivery') navigate('/delivery');
     else navigate('/');
+  };
+
+  const handleDemoLogin = async (demoRole) => {
+    setDemoLoading(demoRole);
+    try {
+      const resp = await apiFetch('/api/users/demo-login/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role: demoRole })
+      });
+      const data = await resp.json();
+      if (resp.ok) {
+        const userResp = await apiFetch('/api/users/me/', {
+          headers: { 'Authorization': `Bearer ${data.access}` }
+        });
+        if (!userResp.ok) throw new Error('Failed to fetch demo profile');
+        const profile = await userResp.json();
+        
+        login({ 
+          ...profile,
+          name: profile?.name || profile?.first_name || profile?.username, 
+          email: profile?.email, 
+          role: profile.role
+        }, data.access);
+        
+        if (profile.role === 'shopkeeper') navigate('/shopkeeper');
+        else if (profile.role === 'delivery') navigate('/delivery');
+        else navigate('/');
+      } else {
+        alert(data.error || 'Demo login failed');
+      }
+    } catch (err) {
+      alert('Network error during demo login. Ensure backend is running.');
+    } finally {
+      setDemoLoading(false);
+    }
   };
 
   return (
@@ -501,6 +538,24 @@ const Login = () => {
             <CtaBtn onClick={() => setOpenModal('customer')} variant="accent" icon="🛍️">{LANG.cust}</CtaBtn>
             <CtaBtn onClick={() => setOpenModal('delivery')} variant="secondary" icon="🛵">{LANG.del}</CtaBtn>
           </div>
+
+          {/* DEMO LOGIN SECTION */}
+          <div style={{ marginTop: '40px', padding: '24px', background: 'rgba(255, 255, 255, 0.6)', borderRadius: '24px', border: '2px dashed var(--parchment)', backdropFilter: 'blur(5px)', maxWidth: '600px', margin: '40px auto 0' }}>
+            <div style={{ fontSize: '.85rem', fontWeight: 800, color: 'var(--brown-mid)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: 16 }}>
+              🎓 For Project Evaluation / Demo Purpose Only
+            </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, justifyContent: 'center' }}>
+              <button onClick={() => handleDemoLogin('shopkeeper')} disabled={!!demoLoading} style={{ ...demoBtnStyle, opacity: demoLoading ? 0.7 : 1 }}>
+                {demoLoading === 'shopkeeper' ? '🔄 Loading...' : '🏪 Shopkeeper Demo'}
+              </button>
+              <button onClick={() => handleDemoLogin('customer')} disabled={!!demoLoading} style={{ ...demoBtnStyle, opacity: demoLoading ? 0.7 : 1 }}>
+                {demoLoading === 'customer' ? '🔄 Loading...' : '🛍️ Customer Demo'}
+              </button>
+              <button onClick={() => handleDemoLogin('delivery')} disabled={!!demoLoading} style={{ ...demoBtnStyle, opacity: demoLoading ? 0.7 : 1 }}>
+                {demoLoading === 'delivery' ? '🔄 Loading...' : '🛵 Delivery Demo'}
+              </button>
+            </div>
+          </div>
         </div>
 
         {/* Feature Grid */}
@@ -548,6 +603,13 @@ const CtaBtn = ({ children, onClick, variant, icon }) => {
       <span style={{ fontSize: '1.2rem' }}>{icon}</span> {children}
     </button>
   );
+};
+
+const demoBtnStyle = {
+  background: 'var(--parchment)', color: 'var(--brown-deep)', border: 'none', 
+  padding: '10px 16px', borderRadius: '12px', fontSize: '.9rem', fontWeight: 800, 
+  cursor: 'pointer', transition: 'all 0.2s', boxShadow: '0 2px 5px rgba(0,0,0,0.05)',
+  display: 'flex', alignItems: 'center', gap: '8px'
 };
 
 export default Login;
