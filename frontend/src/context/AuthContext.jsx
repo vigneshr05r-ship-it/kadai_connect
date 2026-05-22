@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useRef } from 'react';
+import React, { createContext, useContext, useState, useRef, useCallback } from 'react';
 
 const AuthContext = createContext(null);
 
@@ -16,6 +16,20 @@ export const AuthProvider = ({ children }) => {
   // 'waking' = first ping in flight | 'ok' = server responded | 'down' = unreachable
   const [backendStatus, setBackendStatus] = useState('waking');
   const wakeStartRef = useRef(Date.now());
+  const apiCache = useRef({});
+
+  // Periodic cache cleanup to prevent memory leaks
+  React.useEffect(() => {
+    const interval = setInterval(() => {
+      const now = Date.now();
+      Object.keys(apiCache.current).forEach(key => {
+        if (now - apiCache.current[key].timestamp > 60000) {
+          delete apiCache.current[key];
+        }
+      });
+    }, 30000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Wake up the Render backend on mount
   React.useEffect(() => {
@@ -77,13 +91,29 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem('kc_token');
   };
 
-  const updateUser = (newData) => {
-    const updated = { ...user, ...newData };
-    setUser(updated);
-    localStorage.setItem('kc_session', JSON.stringify(updated));
-  };
+  const updateUser = useCallback((newData) => {
+    setUser(prev => {
+      const updated = { ...prev, ...newData };
+      localStorage.setItem('kc_session', JSON.stringify(updated));
+      return updated;
+    });
+  }, []);
 
-  const apiFetch = async (url, options = {}, _retry = true) => {
+  const apiFetch = useCallback(async (url, options = {}, _retry = true) => {
+    const method = options.method || 'GET';
+    const isGet = method.toUpperCase() === 'GET';
+
+    // Invalidate entire cache on write operations (POST, PUT, PATCH, DELETE)
+    if (!isGet) {
+      apiCache.current = {};
+    } else {
+      // Check cache for GET requests
+      const cached = apiCache.current[url];
+      if (cached && (Date.now() - cached.timestamp < 30000)) { // 30s cache TTL
+        return cached.response.clone();
+      }
+    }
+
     const isFormData = options.body instanceof FormData;
     const headers = { ...options.headers };
     if (!isFormData) headers['Content-Type'] = 'application/json';
@@ -101,6 +131,15 @@ export const AuthProvider = ({ children }) => {
         logout();
         return response;
       }
+
+      // Cache successful GET responses
+      if (isGet && response.ok) {
+        apiCache.current[url] = {
+          response: response.clone(),
+          timestamp: Date.now()
+        };
+      }
+
       return response;
     } catch (e) {
       // Network error — likely Render cold-start (ERR_CONNECTION_CLOSED)
@@ -119,7 +158,7 @@ export const AuthProvider = ({ children }) => {
         text: async () => 'Service Unavailable'
       };
     }
-  };
+  }, [token, backendStatus]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <AuthContext.Provider value={{ user, token, loading, login, logout, updateUser, apiFetch, backendStatus }}>

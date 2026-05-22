@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
@@ -859,15 +859,15 @@ export default function ShopkeeperDashboard() {
   const { t, i18n } = useTranslation();
   const isTa = i18n.language.startsWith('ta');
 
-  const getImageUrl = (url) => {
-    if (!url) return null;
-    if (url.startsWith('http') || url.startsWith('blob:') || url.startsWith('data:')) return url;
-    // Hardcoded fallback for production stability if env var is missing
-    const baseUrl = import.meta.env.VITE_API_URL || 'https://kadai-connect.onrender.com';
-    return `${baseUrl.replace(/\/$/, '')}${url.startsWith('/') ? '' : '/'}${url}`;
-  };
   const { user, logout, apiFetch, updateUser } = useAuth();
   const navigate = useNavigate();
+
+  const getImageUrl = useCallback((url) => {
+    if (!url) return null;
+    if (url.startsWith('http') || url.startsWith('blob:') || url.startsWith('data:')) return url;
+    const baseUrl = import.meta.env.VITE_API_URL || 'https://kadai-connect.onrender.com';
+    return `${baseUrl.replace(/\/$/, '')}${url.startsWith('/') ? '' : '/'}${url}`;
+  }, []);
   const [section, setSection] = useState('dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [notificationOpen, setNotificationOpen] = useState(false);
@@ -1001,27 +1001,71 @@ export default function ShopkeeperDashboard() {
     fetchData();
   }, []);
 
-  // Poll for tracking location if modal is open
+  // Poll or stream location if modal is open
   useEffect(() => {
     if (!trackingOrder) return;
     
-    const interval = setInterval(async () => {
-      try {
-        const resp = await apiFetch(`/api/orders/${trackingOrder.id}/`);
-        if (resp.ok) {
-          const updatedOrder = await resp.json();
-          setTrackingOrder(updatedOrder);
-        }
-      } catch (e) {
-        console.error("Polling error", e);
-      }
-    }, 5000); // Poll every 5 seconds
+    const assignmentId = trackingOrder.delivery_info?.assignment_id;
     
-    return () => clearInterval(interval);
-  }, [trackingOrder?.id]);
+    if (!assignmentId) {
+      // If no delivery partner is assigned, poll order status every 5 seconds
+      const interval = setInterval(async () => {
+        try {
+          const resp = await apiFetch(`/api/orders/${trackingOrder.id}/`);
+          if (resp.ok) {
+            const updatedOrder = await resp.json();
+            setTrackingOrder(updatedOrder);
+          }
+        } catch (e) {
+          console.error("Polling error", e);
+        }
+      }, 5000);
+      return () => clearInterval(interval);
+    }
+
+    // If partner is assigned, upgrade to Server-Sent Events (SSE) for real-time location pushes
+    const token = localStorage.getItem('kc_token');
+    const baseUrl = import.meta.env.VITE_API_URL || '';
+    const sseUrl = `${baseUrl.replace(/\/$/, '')}/api/delivery/${assignmentId}/stream_location/?token=${token}`;
+
+    const eventSource = new EventSource(sseUrl);
+
+    eventSource.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        setTrackingOrder(prev => {
+          if (!prev) return null;
+          return {
+            ...prev,
+            status: data.status,
+            delivery_info: {
+              ...prev.delivery_info,
+              lat: data.lat,
+              lng: data.lng,
+              status: data.status
+            }
+          };
+        });
+      } catch (err) {
+        console.error("Error parsing SSE data", err);
+      }
+    };
+
+    eventSource.onerror = (e) => {
+      console.error("SSE stream connection error", e);
+      eventSource.close();
+    };
+
+    return () => {
+      eventSource.close();
+    };
+  }, [trackingOrder?.id, trackingOrder?.delivery_info?.assignment_id, apiFetch]);
 
 
-  const showToast = (msg) => { setToast({ msg, visible: true }); setTimeout(() => setToast(t => ({ ...t, visible: false })), 3000); };
+  const showToast = useCallback((msg) => {
+    setToast({ msg, visible: true });
+    setTimeout(() => setToast(t => ({ ...t, visible: false })), 3000);
+  }, []);
   const saveProducts = (p) => { setProducts(p); localStorage.setItem('kc_products', JSON.stringify(p)); };
 
   const sess = JSON.parse(localStorage.getItem('kc_session') || '{}');
@@ -1216,7 +1260,7 @@ export default function ShopkeeperDashboard() {
   const hasProducts = storeData?.has_products !== false;
   const hasServices = storeData?.has_services === true;
 
-  const navItems = [
+  const navItems = useMemo(() => [
     { key: 'dashboard', icon: <Home size={18} />, label: t('dashboard'), show: true },
     { key: 'products', icon: <Package size={18} />, label: t('my_products'), show: hasProducts },
     { key: 'services', icon: <Briefcase size={18} />, label: isTa ? 'சேவைகள்' : 'Services', show: hasServices },
@@ -1227,7 +1271,7 @@ export default function ShopkeeperDashboard() {
     { key: 'deliveries', icon: <Truck size={18} />, label: t('deliveries'), show: hasProducts },
     { key: 'earnings', icon: <IndianRupee size={18} />, label: isTa ? 'வருவாய்' : 'Earnings', show: true },
     { key: 'settings', icon: <UserCircle size={18} />, label: isTa ? 'கடை சுயவிவரம்' : 'Shop Profile', show: true },
-  ].filter(n => n.show);
+  ].filter(n => n.show), [t, isTa, hasProducts, hasServices]);
 
   const toggleCapability = async (field, value) => {
     try {

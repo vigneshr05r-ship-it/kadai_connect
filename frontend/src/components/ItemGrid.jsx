@@ -1,11 +1,11 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { ShoppingCart, Heart, Store, ExternalLink } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { PRODUCT_PLACEHOLDER, SERVICE_PLACEHOLDER } from '../utils/placeholders';
 
-export default function ItemGrid({ items, type = 'product', onSelect, onEdit, onDelete, onAdd }) {
+function ItemGrid({ items, type = 'product', onSelect, onEdit, onDelete, onAdd }) {
   const { i18n } = useTranslation();
   const navigate = useNavigate();
   const { wishlist, addToCart, toggleWishlist } = useCart();
@@ -320,3 +320,4 @@ export default function ItemGrid({ items, type = 'product', onSelect, onEdit, on
     </div>
   );
 }
+export default memo(ItemGrid);

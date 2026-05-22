@@ -24,21 +24,26 @@ class ServiceListCreateView(generics.ListCreateAPIView):
         return [IsAuthenticated()]
 
     def get_queryset(self):
+        from django.db.models import Count
+        base_qs = Service.objects.all().select_related('store', 'category').annotate(
+            annotated_bookings_count=Count('bookings', distinct=True)
+        ).order_by('-created_at')
+
         # If store_id is provided, show only active services for that store (public view)
         store_id = self.request.query_params.get('store')
         if store_id:
-            return Service.objects.filter(store_id=store_id, is_active=True).select_related('store', 'category').order_by('-created_at')
+            return base_qs.filter(store_id=store_id, is_active=True)
         
         # If authenticated shopkeeper, show all their services (dashboard view)
         user = self.request.user
         if user.is_authenticated and getattr(user, 'role', '') == 'shopkeeper':
             store = Store.objects.filter(owner=user).first()
             if store:
-                return Service.objects.filter(store=store).select_related('store', 'category').order_by('-created_at')
+                return base_qs.filter(store=store)
             return Service.objects.none()
         
         # Otherwise show all active services (Customer view)
-        return Service.objects.filter(is_active=True).select_related('store', 'category').order_by('-created_at')
+        return base_qs.filter(is_active=True)
 
     def perform_create(self, serializer):
         store = Store.objects.filter(owner=self.request.user).first()
@@ -64,7 +69,7 @@ class ServiceDetailView(generics.RetrieveUpdateDestroyAPIView):
         return [IsAuthenticated()]
 
     def get_queryset(self):
-        return Service.objects.all()
+        return Service.objects.all().select_related('store', 'category')
 
     def perform_update(self, serializer):
         category = resolve_category(self.request.data, default_type='service')
@@ -93,14 +98,15 @@ class BookingListCreateView(generics.ListCreateAPIView):
         if not user.is_authenticated:
             return Booking.objects.none()
             
+        base_qs = Booking.objects.select_related('store', 'service', 'customer').prefetch_related('status_history').order_by('-created_at')
         if user.role == 'shopkeeper':
             store = Store.objects.filter(owner=user).first()
             if store:
-                return Booking.objects.filter(store=store).order_by('-created_at')
+                return base_qs.filter(store=store)
             return Booking.objects.none()
         
         # Default: Customer sees their own bookings
-        return Booking.objects.filter(customer=user).order_by('-created_at')
+        return base_qs.filter(customer=user)
 
 
 class BookingCancelView(APIView):
@@ -148,7 +154,7 @@ class BookingDetailView(generics.RetrieveUpdateDestroyAPIView):
     def get_queryset(self):
         store = Store.objects.filter(owner=self.request.user).first()
         if store:
-            return Booking.objects.filter(store=store)
+            return Booking.objects.filter(store=store).select_related('store', 'service', 'customer').prefetch_related('status_history')
         return Booking.objects.none()
 
 

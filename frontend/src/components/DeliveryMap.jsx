@@ -56,7 +56,7 @@ function getDistrictCenter(address) {
   return DISTRICT_CENTERS.default;
 }
 
-export default function DeliveryMap({ pickupCoords, deliveryCoords, currentCoords, orderAddress, onRouteUpdate }) {
+export default function DeliveryMap({ pickupCoords, deliveryCoords, currentCoords, orderAddress, pickupAddress, onRouteUpdate }) {
   const mapRef = useRef(null);
   const mapInstance = useRef(null);
   const markersRef = useRef({});
@@ -67,11 +67,16 @@ export default function DeliveryMap({ pickupCoords, deliveryCoords, currentCoord
     ? deliveryCoords
     : getDistrictCenter(orderAddress);
 
+  // Always resolve a pickup — use geocoded coords or address-based fallback
+  const resolvedPickup = (pickupCoords?.lat && pickupCoords?.lng)
+    ? pickupCoords
+    : getDistrictCenter(pickupAddress || 'Vandalur');
+
   // Initialize map once
   useEffect(() => {
     if (!mapRef.current || mapInstance.current) return;
-    const center = pickupCoords?.lat
-      ? [pickupCoords.lat, pickupCoords.lng]
+    const center = resolvedPickup?.lat
+      ? [resolvedPickup.lat, resolvedPickup.lng]
       : [resolvedDelivery.lat, resolvedDelivery.lng];
     mapInstance.current = L.map(mapRef.current, { zoomControl: true }).setView(center, 13);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -98,14 +103,14 @@ export default function DeliveryMap({ pickupCoords, deliveryCoords, currentCoord
     };
 
     // Place all three markers
-    setMarker('pickup', pickupCoords, shopIcon, '🏪 Shop (Pickup)');
+    setMarker('pickup', resolvedPickup, shopIcon, '🏪 Shop (Pickup)');
     setMarker('delivery', resolvedDelivery, homeIcon, '🏠 Your Home');
-    const driverPos = (currentCoords?.lat && currentCoords?.lng) ? currentCoords : pickupCoords;
+    const driverPos = (currentCoords?.lat && currentCoords?.lng) ? currentCoords : resolvedPickup;
     setMarker('driver', driverPos, bikeIcon, '🛵 Delivery Partner');
 
     // DRAW ROUTE
     if (routeRef.current && map.hasLayer(routeRef.current)) map.removeLayer(routeRef.current);
-    const points = [pickupCoords, resolvedDelivery].filter(c => c?.lat && c?.lng);
+    const points = [resolvedPickup, resolvedDelivery].filter(c => c?.lat && c?.lng);
     if (points.length >= 2) {
       const wp = points.map(c => `${c.lng},${c.lat}`).join(';');
       fetch(`https://router.project-osrm.org/route/v1/driving/${wp}?overview=full&geometries=geojson`)
@@ -132,7 +137,7 @@ export default function DeliveryMap({ pickupCoords, deliveryCoords, currentCoord
       // Fit map to all markers with a slight delay to ensure container is ready
       setTimeout(() => {
         if (!mapInstance.current) return;
-        const allPts = [pickupCoords, resolvedDelivery, driverPos].filter(c => c?.lat && c?.lng);
+        const allPts = [resolvedPickup, resolvedDelivery, driverPos].filter(c => c?.lat && c?.lng);
         if (allPts.length >= 2) {
           mapInstance.current.invalidateSize();
           mapInstance.current.fitBounds(L.latLngBounds(allPts.map(c => [c.lat, c.lng])), { padding: [40, 40], animate: true });
@@ -140,16 +145,26 @@ export default function DeliveryMap({ pickupCoords, deliveryCoords, currentCoord
       }, 100);
     }
   }, [
-    pickupCoords?.lat, pickupCoords?.lng,
-    deliveryCoords?.lat, deliveryCoords?.lng,
+    resolvedPickup?.lat, resolvedPickup?.lng,
+    resolvedDelivery?.lat, resolvedDelivery?.lng,
     currentCoords?.lat, currentCoords?.lng,
     orderAddress,
+    pickupAddress,
   ]);
 
   return (
-    <div
-      ref={mapRef}
-      style={{ height: '100%', width: '100%', borderRadius: 12, overflow: 'hidden', border: '2px solid #C9921A', background: '#f0f0f0' }}
-    />
+    <div style={{ position: 'relative', height: '100%', width: '100%' }}>
+      <style>{`
+        .leaflet-div-icon {
+          background: transparent !important;
+          border: none !important;
+          box-shadow: none !important;
+        }
+      `}</style>
+      <div
+        ref={mapRef}
+        style={{ height: '100%', width: '100%', borderRadius: 12, overflow: 'hidden', border: '2px solid #C9921A', background: '#f0f0f0' }}
+      />
+    </div>
   );
 }

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 
 const CartContext = createContext();
 
@@ -29,97 +29,77 @@ export const CartProvider = ({ children }) => {
     return Array.isArray(parsed) ? parsed : [];
   });
 
-  useEffect(() => {
-    localStorage.setItem('kc_cart', JSON.stringify(cart));
-    window.dispatchEvent(new Event('storage'));
-  }, [cart]);
-
-  useEffect(() => {
-    localStorage.setItem('kc_bookings', JSON.stringify(bookings));
-    window.dispatchEvent(new Event('storage'));
-  }, [bookings]);
-
-  useEffect(() => {
-    localStorage.setItem('kc_wishlist', JSON.stringify(wishlist));
-    window.dispatchEvent(new Event('storage'));
-  }, [wishlist]);
+  useEffect(() => { localStorage.setItem('kc_cart', JSON.stringify(cart)); }, [cart]);
+  useEffect(() => { localStorage.setItem('kc_bookings', JSON.stringify(bookings)); }, [bookings]);
+  useEffect(() => { localStorage.setItem('kc_wishlist', JSON.stringify(wishlist)); }, [wishlist]);
 
   const [toast, setToast] = useState({ visible: false, msg: '', icon: '🛍️' });
 
-  const showToast = (msg, icon = '🛍️') => {
+  const showToast = useCallback((msg, icon = '🛍️') => {
     setToast({ visible: true, msg, icon });
     setTimeout(() => setToast(p => ({ ...p, visible: false })), 2000);
-  };
+  }, []);
 
-  const addToCart = (product, quantity = 1) => {
+  const addToCart = useCallback((product, quantity = 1) => {
     setCart(prev => {
       const existing = prev.find(item => item.id === product.id);
       if (existing) {
-        return prev.map(item => 
-          item.id === product.id 
-            ? { ...item, qty: item.qty + quantity } 
-            : item
+        return prev.map(item =>
+          item.id === product.id ? { ...item, qty: item.qty + quantity } : item
         );
       }
       return [...prev, { ...product, qty: quantity, cartId: Math.random().toString(36).substr(2, 9) }];
     });
     showToast(`${product.name} added to bag!`, '✨');
-  };
+  }, [showToast]);
 
-  const addBooking = (service, date, time) => {
+  const addBooking = useCallback((service, date, time) => {
     setBookings(prev => [
-      ...prev, 
-      { 
-        ...service, 
-        bookingDate: date, 
-        bookingTime: time, 
-        bookingId: Math.random().toString(36).substr(2, 9) 
-      }
+      ...prev,
+      { ...service, bookingDate: date, bookingTime: time, bookingId: Math.random().toString(36).substr(2, 9) }
     ]);
     showToast(`Service booked for ${date}!`, '📅');
-  };
+  }, [showToast]);
 
-  const removeFromCart = (cartId) => {
+  const removeFromCart = useCallback((cartId) => {
     setCart(prev => prev.filter(item => item.cartId !== cartId));
-  };
+  }, []);
 
-  const removeBooking = (bookingId) => {
+  const removeBooking = useCallback((bookingId) => {
     setBookings(prev => prev.filter(item => item.bookingId !== bookingId));
-  };
+  }, []);
 
-  const updateQuantity = (cartId, delta) => {
+  const updateQuantity = useCallback((cartId, delta) => {
     setCart(prev => prev.map(item => {
-      if (item.cartId === cartId) {
-        const newQty = Math.max(1, item.qty + delta);
-        return { ...item, qty: newQty };
-      }
+      if (item.cartId === cartId) return { ...item, qty: Math.max(1, item.qty + delta) };
       return item;
     }));
-  };
+  }, []);
 
-  const clearCart = () => {
+  const clearCart = useCallback(() => {
     setCart([]);
     setBookings([]);
-  };
+  }, []);
 
-  const toggleWishlist = (product) => {
+  const toggleWishlist = useCallback((product) => {
     setWishlist(prev => {
       const exists = prev.find(item => item.id === product.id);
-      if (exists) {
-        return prev.filter(item => item.id !== product.id);
-      }
-      return [...prev, product];
+      return exists ? prev.filter(item => item.id !== product.id) : [...prev, product];
     });
-  };
+  }, []);
 
-  const isInWishlist = (productId) => {
+  const isInWishlist = useCallback((productId) => {
     return wishlist.some(item => item.id === productId);
-  };
+  }, [wishlist]);
 
-  const cartTotal = cart.reduce((acc, item) => acc + (item.price * item.qty), 0) +
-                    bookings.reduce((acc, item) => acc + Number(item.price), 0);
-  
-  const cartCount = cart.reduce((acc, item) => acc + item.qty, 0) + bookings.length;
+  const cartTotal = useMemo(() =>
+    cart.reduce((acc, item) => acc + (item.price * item.qty), 0) +
+    bookings.reduce((acc, item) => acc + Number(item.price), 0),
+  [cart, bookings]);
+
+  const cartCount = useMemo(() =>
+    cart.reduce((acc, item) => acc + item.qty, 0) + bookings.length,
+  [cart, bookings]);
 
   return (
     <CartContext.Provider value={{

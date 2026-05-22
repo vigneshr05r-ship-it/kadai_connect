@@ -16,6 +16,8 @@ class ServiceSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'created_at', 'store', 'bookings_count']
 
     def get_bookings_count(self, obj):
+        if hasattr(obj, 'annotated_bookings_count'):
+            return obj.annotated_bookings_count
         return obj.bookings.count()
 
     def get_image_url(self, obj):
@@ -44,8 +46,9 @@ class BookingSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'created_at', 'customer', 'status_history', 'cancelled_by']
 
     def get_status_history(self, obj):
-        from orders.models import OrderStatusHistory
-        history = OrderStatusHistory.objects.filter(booking=obj).order_by('created_at')
+        # Using prefetched relations to avoid N+1 queries. Sorting in memory.
+        history = list(obj.status_history.all())
+        history.sort(key=lambda x: x.created_at)
         return [
             {'status': h.status, 'notes': h.notes, 'created_at': h.created_at}
             for h in history

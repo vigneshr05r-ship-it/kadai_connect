@@ -27,24 +27,65 @@ export default function Orders() {
     return () => clearInterval(timer);
   }, []);
 
-  // Poll for tracking location if modal is open
+  // Poll or stream location if modal is open
   useEffect(() => {
     if (!trackingOrder) return;
     
-    const interval = setInterval(async () => {
-      try {
-        const resp = await apiFetch(`/api/orders/${trackingOrder.id}/`);
-        if (resp.ok) {
-          const updatedOrder = await resp.json();
-          setTrackingOrder(updatedOrder);
-        }
-      } catch (e) {
-        console.error("Polling error", e);
-      }
-    }, 5000); // Poll every 5 seconds
+    const assignmentId = trackingOrder.delivery_info?.assignment_id;
     
-    return () => clearInterval(interval);
-  }, [trackingOrder?.id]);
+    if (!assignmentId) {
+      // If no delivery partner is assigned, poll order status every 5 seconds
+      const interval = setInterval(async () => {
+        try {
+          const resp = await apiFetch(`/api/orders/${trackingOrder.id}/`);
+          if (resp.ok) {
+            const updatedOrder = await resp.json();
+            setTrackingOrder(updatedOrder);
+          }
+        } catch (e) {
+          console.error("Polling error", e);
+        }
+      }, 5000);
+      return () => clearInterval(interval);
+    }
+
+    // If partner is assigned, upgrade to Server-Sent Events (SSE) for real-time location pushes
+    const token = localStorage.getItem('kc_token');
+    const baseUrl = import.meta.env.VITE_API_URL || '';
+    const sseUrl = `${baseUrl.replace(/\/$/, '')}/api/delivery/${assignmentId}/stream_location/?token=${token}`;
+
+    const eventSource = new EventSource(sseUrl);
+
+    eventSource.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        setTrackingOrder(prev => {
+          if (!prev) return null;
+          return {
+            ...prev,
+            status: data.status,
+            delivery_info: {
+              ...prev.delivery_info,
+              lat: data.lat,
+              lng: data.lng,
+              status: data.status
+            }
+          };
+        });
+      } catch (err) {
+        console.error("Error parsing SSE data", err);
+      }
+    };
+
+    eventSource.onerror = (e) => {
+      console.error("SSE stream connection error", e);
+      eventSource.close();
+    };
+
+    return () => {
+      eventSource.close();
+    };
+  }, [trackingOrder?.id, trackingOrder?.delivery_info?.assignment_id, apiFetch]);
 
   const fetchData = async () => {
     setLoading(true);
@@ -307,6 +348,7 @@ export default function Orders() {
                   deliveryCoords={trackingOrder.customer_lat ? { lat: Number(trackingOrder.customer_lat), lng: Number(trackingOrder.customer_lng) } : null}
                   currentCoords={trackingOrder.delivery_info?.lat ? { lat: Number(trackingOrder.delivery_info.lat), lng: Number(trackingOrder.delivery_info.lng) } : null}
                   orderAddress={trackingOrder.address}
+                  pickupAddress={trackingOrder.store_address}
                 />
               </div>
               

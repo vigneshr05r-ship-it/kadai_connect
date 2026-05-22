@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { ShoppingCart, Heart, Star, MapPin, Store } from 'lucide-react';
@@ -12,7 +12,7 @@ const BADGE_COLORS = {
   sale: { bg: 'var(--gold)', color: 'var(--brown-deep)', label: 'Hot Deal' } 
 };
 
-export default function ProductGrid({ products, onSelect, onEdit, onDelete, onAdd }) {
+function ProductGrid({ products, onSelect, onEdit, onDelete, onAdd }) {
   const { i18n, t } = useTranslation();
   const navigate = useNavigate();
   const { wishlist, addToCart, toggleWishlist } = useCart();
@@ -137,3 +137,4 @@ export default function ProductGrid({ products, onSelect, onEdit, onDelete, onAd
     </div>
   );
 }
+export default memo(ProductGrid);

@@ -10,12 +10,12 @@ class DeliveryAssignment(models.Model):
         ('service_return', 'Service Item Return to Customer'),
     )
     
-    task_type = models.CharField(max_length=20, choices=TASK_TYPES, default='order_delivery')
+    task_type = models.CharField(max_length=20, choices=TASK_TYPES, default='order_delivery', db_index=True)
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='deliveries', null=True, blank=True)
     booking = models.ForeignKey(Booking, on_delete=models.CASCADE, related_name='deliveries', null=True, blank=True)
     
     partner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, limit_choices_to={'role': 'delivery'}, null=True, blank=True)
-    status = models.CharField(max_length=20, default='available') # available, assigned, heading_to_store, picked_up, out_for_delivery, delivered, returning_to_store, returned_to_store, cancelled
+    status = models.CharField(max_length=20, default='available', db_index=True) # available, assigned, heading_to_store, picked_up, out_for_delivery, delivered, returning_to_store, returned_to_store, cancelled
     
     # Tracking
     current_lat = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)

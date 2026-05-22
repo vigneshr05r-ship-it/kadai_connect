@@ -4,13 +4,16 @@ import sys
 
 def main():
     """Run administrative tasks."""
-    try:
-        from dotenv import load_dotenv
-        from pathlib import Path
-        env_path = Path(__file__).resolve().parent / '.env'
-        load_dotenv(dotenv_path=env_path)
-    except ImportError:
-        pass
+    from pathlib import Path
+    env_path = Path(__file__).resolve().parent / '.env'
+    if env_path.exists():
+        with open(env_path, 'r', encoding='utf-8') as f:
+            for line in f:
+                line = line.strip()
+                if not line or line.startswith('#') or '=' not in line:
+                    continue
+                k, v = line.split('=', 1)
+                os.environ.setdefault(k.strip(), v.strip().strip("'").strip('"'))
 
     os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'kadai_backend.settings')
     try:

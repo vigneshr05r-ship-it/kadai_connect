@@ -3,7 +3,7 @@ import React from 'react';
 const Skeleton = ({ width = '100%', height = '100%', borderRadius = '8px', className = '' }) => {
   return (
     <div 
-      className={`animate-pulse bg-parchment-dark ${className}`}
+      className={`animate-pulse bg-parchment ${className}`}
       style={{ width, height, borderRadius }}
     />
   );

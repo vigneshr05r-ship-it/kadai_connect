@@ -6,7 +6,13 @@ from .models import DeliveryAssignment
 from .serializers import DeliveryAssignmentSerializer
 
 class DeliveryViewSet(viewsets.ModelViewSet):
-    queryset = DeliveryAssignment.objects.all()
+    queryset = DeliveryAssignment.objects.all().select_related(
+        'partner', 
+        'order__store', 
+        'order__customer', 
+        'booking__store', 
+        'booking__customer'
+    )
     serializer_class = DeliveryAssignmentSerializer
     
     def get_queryset(self):
@@ -195,3 +201,69 @@ class DeliveryViewSet(viewsets.ModelViewSet):
             import logging
             logging.getLogger(__name__).error(f"update_location error: {str(e)}")
             return Response({'error': str(e)}, status=500)
+
+    @action(detail=True, methods=['get'], permission_classes=[permissions.AllowAny])
+    def stream_location(self, request, pk=None):
+        from django.http import StreamingHttpResponse
+        from django.contrib.auth import get_user_model
+        from rest_framework_simplejwt.tokens import AccessToken
+        import time
+        import json
+
+        token_str = request.query_params.get('token')
+        authenticated_user = None
+        if token_str:
+            try:
+                access_token = AccessToken(token_str)
+                user_id = access_token['user_id']
+                authenticated_user = get_user_model().objects.filter(pk=user_id).first()
+            except Exception:
+                pass
+
+        if not authenticated_user and request.user and request.user.is_authenticated:
+            authenticated_user = request.user
+
+        if not authenticated_user:
+            from rest_framework.response import Response
+            return Response({'detail': 'Authentication credentials were not provided.'}, status=401)
+
+        def event_generator():
+            last_coords = None
+            for _ in range(25):  # Loop up to 50 seconds to respect Render/Gunicorn timeout
+                try:
+                    task = DeliveryAssignment.objects.filter(pk=pk).first()
+                    if not task:
+                        yield "event: error\ndata: {\"error\": \"Task not found\"}\n\n"
+                        break
+                    
+                    # Ensure user has access: either owner of the store or the customer
+                    is_owner = task.order and task.order.store and task.order.store.owner == authenticated_user
+                    is_customer = task.order and task.order.customer == authenticated_user
+                    is_booking_owner = task.booking and task.booking.store and task.booking.store.owner == authenticated_user
+                    is_booking_customer = task.booking and task.booking.customer == authenticated_user
+                    is_partner = task.partner == authenticated_user
+
+                    if not (is_owner or is_customer or is_booking_owner or is_booking_customer or is_partner or authenticated_user.is_staff):
+                        yield "event: error\ndata: {\"error\": \"Permission denied\"}\n\n"
+                        break
+
+                    coords = {
+                        'lat': float(task.current_lat) if task.current_lat else None,
+                        'lng': float(task.current_lng) if task.current_lng else None,
+                        'status': task.status
+                    }
+                    
+                    if coords != last_coords:
+                        yield f"data: {json.dumps(coords)}\n\n"
+                        last_coords = coords
+                        
+                except Exception as e:
+                    yield f"event: error\ndata: {json.dumps({'error': str(e)})}\n\n"
+                    break
+                
+                time.sleep(2)
+
+        response = StreamingHttpResponse(event_generator(), content_type='text/event-stream')
+        response['Cache-Control'] = 'no-cache'
+        response['X-Accel-Buffering'] = 'no'
+        return response

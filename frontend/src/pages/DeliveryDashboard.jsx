@@ -813,6 +813,8 @@ export default function DeliveryDashboard() {
                 pickupCoords={optimizedStops.length > 0 ? optimizedStops[0].pickup_coords : null}
                 deliveryCoords={optimizedStops.length > 0 ? optimizedStops[0].delivery_coords : null}
                 currentCoords={driverPos}
+                pickupAddress={optimizedStops.length > 0 ? optimizedStops[0].pickupAddress : null}
+                orderAddress={optimizedStops.length > 0 ? optimizedStops[0].deliveryAddress : null}
                 onRouteUpdate={setRouteStats}
               />
             </div>

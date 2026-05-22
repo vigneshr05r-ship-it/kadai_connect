@@ -1,11 +1,20 @@
+from django.db.models import Count
+from django.views.decorators.cache import cache_control
+from django.utils.decorators import method_decorator
 from rest_framework import viewsets, permissions, status, parsers
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from .models import Store
 from .serializers import StoreSerializer
 
+@method_decorator(cache_control(max_age=60, public=True), name='list')
+@method_decorator(cache_control(max_age=60, public=True), name='retrieve')
+
 class StoreViewSet(viewsets.ModelViewSet):
-    queryset = Store.objects.filter(is_active=True)
+    queryset = Store.objects.filter(is_active=True).annotate(
+        annotated_product_count=Count('products', distinct=True),
+        annotated_service_count=Count('services', distinct=True)
+    )
     serializer_class = StoreSerializer
     parser_classes = (parsers.MultiPartParser, parsers.FormParser, parsers.JSONParser)
     

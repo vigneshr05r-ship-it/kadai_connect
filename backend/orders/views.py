@@ -7,7 +7,11 @@ from .serializers import OrderSerializer
 from delivery.models import DeliveryAssignment
 
 class OrderViewSet(viewsets.ModelViewSet):
-    queryset = Order.objects.all().select_related('customer', 'store').order_by('-created_at')
+    queryset = Order.objects.all().select_related('customer', 'store').prefetch_related(
+        'items__product', 
+        'status_history', 
+        'deliveries__partner'
+    ).order_by('-created_at')
     serializer_class = OrderSerializer
     
     def get_queryset(self):

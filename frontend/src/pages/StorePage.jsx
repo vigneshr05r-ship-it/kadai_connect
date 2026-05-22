@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Star, MapPin, Phone, MessageCircle, Heart, Search, ArrowLeft, Briefcase, ShoppingBag, Clock, Calendar, Plus, Bell, CheckCircle2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
@@ -59,8 +59,18 @@ const StorePage = () => {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('products');
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const searchTimer = useRef(null);
   const [toast, setToast] = useState({ msg: '', visible: false });
   const [bookingService, setBookingService] = useState(null);
+
+  // Debounce search: only filter after user stops typing for 300ms
+  const handleSearchChange = (e) => {
+    const val = e.target.value;
+    setSearchQuery(val);
+    clearTimeout(searchTimer.current);
+    searchTimer.current = setTimeout(() => setDebouncedSearch(val), 300);
+  };
 
   const showToast = (msg) => {
     setToast({ msg, visible: true });
@@ -141,9 +151,12 @@ const StorePage = () => {
     </MainLayout>
   );
 
-  const filteredItems = activeTab === 'products' 
-    ? products.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()) || (p.name_ta && p.name_ta.includes(searchQuery)))
-    : services.filter(s => s.name.toLowerCase().includes(searchQuery.toLowerCase()) || (s.name_ta && s.name_ta.includes(searchQuery)));
+  const filteredItems = useMemo(() => {
+    const q = debouncedSearch.toLowerCase();
+    return activeTab === 'products'
+      ? products.filter(p => p.name.toLowerCase().includes(q) || (p.name_ta && p.name_ta.includes(debouncedSearch)))
+      : services.filter(s => s.name.toLowerCase().includes(q) || (s.name_ta && s.name_ta.includes(debouncedSearch)));
+  }, [activeTab, products, services, debouncedSearch]);
 
   return (
     <MainLayout title={store.name}>
@@ -211,7 +224,7 @@ const StorePage = () => {
               placeholder={isTa ? `தேடு ${activeTab === 'products' ? 'பொருட்கள்' : 'சேவைகள்'}...` : `Search ${activeTab === 'products' ? 'products' : 'services'}...`}
               style={{ width: '100%', padding: '12px 16px 12px 48px', borderRadius: 14, border: '1.5px solid var(--parchment)', background: '#fff', fontSize: '.9rem', fontWeight: 700, outline: 'none' }}
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={handleSearchChange}
             />
           </div>
 

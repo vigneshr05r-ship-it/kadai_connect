@@ -25,9 +25,13 @@ class StoreSerializer(serializers.ModelSerializer):
         read_only_fields = ('owner', 'rating', 'created_at', 'product_count', 'service_count')
 
     def get_product_count(self, obj):
+        if hasattr(obj, 'annotated_product_count'):
+            return obj.annotated_product_count
         return obj.products.count()
 
     def get_service_count(self, obj):
+        if hasattr(obj, 'annotated_service_count'):
+            return obj.annotated_service_count
         return obj.services.count()
 
     def get_logo_url(self, obj):

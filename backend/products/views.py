@@ -60,7 +60,7 @@ class ProductViewSet(viewsets.ModelViewSet):
 
 
 class CategoryViewSet(viewsets.ModelViewSet):
-    queryset = Category.objects.all()
+    queryset = Category.objects.all().prefetch_related('subcategories', 'parent')
     serializer_class = CategorySerializer
     pagination_class = None
 

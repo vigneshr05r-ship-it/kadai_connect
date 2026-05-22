@@ -31,6 +31,7 @@ class OrderSerializer(serializers.ModelSerializer):
     
     store_lat = serializers.SerializerMethodField()
     store_lng = serializers.SerializerMethodField()
+    store_address = serializers.SerializerMethodField()
     
     delivery_info = serializers.SerializerMethodField()
     
@@ -40,7 +41,12 @@ class OrderSerializer(serializers.ModelSerializer):
     class Meta:
         model = Order
         fields = '__all__'
-        read_only_fields = ('customer', 'created_at', 'items', 'status_history', 'cancelled_by', 'store_lat', 'store_lng')
+        read_only_fields = ('customer', 'created_at', 'items', 'status_history', 'cancelled_by', 'store_lat', 'store_lng', 'store_address')
+
+    def get_store_address(self, obj):
+        if obj.store and obj.store.address:
+            return obj.store.address
+        return None
 
     def get_store_lat(self, obj):
         if obj.store and obj.store.latitude is not None:
@@ -69,8 +75,9 @@ class OrderSerializer(serializers.ModelSerializer):
 
     def get_delivery_info(self, obj):
         try:
-            from delivery.models import DeliveryAssignment
-            assignment = DeliveryAssignment.objects.filter(order=obj).last()
+            # Using prefetched deliveries list to avoid database hits
+            deliveries = list(obj.deliveries.all())
+            assignment = deliveries[-1] if deliveries else None
             if not assignment:
                 return None
                 
@@ -88,6 +95,7 @@ class OrderSerializer(serializers.ModelSerializer):
                     return None
 
             return {
+                'assignment_id': assignment.id,
                 'partner_name': p_name,
                 'partner_phone': p.phone if p else '',
                 'status': assignment.status,

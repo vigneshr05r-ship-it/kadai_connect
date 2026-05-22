@@ -16,7 +16,7 @@ class Service(models.Model):
     image = models.ImageField(upload_to='services/', blank=True, null=True)
     rating = models.DecimalField(max_digits=3, decimal_places=2, default=5.0)
     reviews_count = models.IntegerField(default=0)
-    is_active = models.BooleanField(default=True)
+    is_active = models.BooleanField(default=True, db_index=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -50,7 +50,7 @@ class Booking(models.Model):
     booking_date = models.DateField()
     booking_time = models.TimeField()
     notes = models.TextField(blank=True, null=True)
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='Pending')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='Pending', db_index=True)
     payment_method = models.CharField(max_length=10, default='COD') # COD, UPI, CARD
     payment_status = models.CharField(max_length=20, default='pending') # pending, paid, failed, refund_initiated, refund_completed
     transaction_id = models.CharField(max_length=100, blank=True, null=True)
@@ -65,3 +65,8 @@ class Booking(models.Model):
 
     def __str__(self):
         return f"Booking #{self.id} – {self.service.name} by {self.customer_name}"
+
+    class Meta:
+        indexes = [
+            models.Index(fields=['store', 'status', 'created_at']),
+        ]

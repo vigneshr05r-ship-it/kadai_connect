@@ -21,6 +21,7 @@ const Shops = lazy(() => import('./pages/Shops'));
 const ProductDetail = lazy(() => import('./pages/ProductDetail'));
 const Cart = lazy(() => import('./pages/Cart'));
 
+// Static fallback loader — defined outside component so reference is stable
 const PageLoader = () => (
   <div className="min-h-screen bg-background flex flex-col items-center justify-center">
     <div className="w-16 h-16 bg-primary rounded-2xl animate-pulse flex items-center justify-center mb-4">
@@ -41,15 +42,15 @@ function AppRoutes() {
   const { user, loading, apiFetch, updateUser } = useAuth();
   const [notification, setNotification] = useState({ title: '', body: '', show: false });
 
-  // Handle Firebase Notifications
+  // Handle Firebase Notifications — request FCM token once on first login
   useEffect(() => {
     if (user && !user.fcm_token) {
-      // Small delay to ensure browser is ready
-      setTimeout(() => {
+      const timer = setTimeout(() => {
         requestNotificationPermission(apiFetch, updateUser);
       }, 3000);
+      return () => clearTimeout(timer);
     }
-  }, [user]);
+  }, [user?.id, apiFetch, updateUser]); // user?.id avoids re-running on non-auth profile updates
 
   useEffect(() => {
     onMessageListener()

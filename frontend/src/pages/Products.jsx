@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -58,12 +58,14 @@ export default function Products() {
     fetchData();
   }, [apiFetch, category]);
 
-  const sortedProducts = [...dbProducts].sort((a, b) => {
-    if (sortBy === 'price') return a.price - b.price;
-    if (sortBy === 'rating') return b.rating - a.rating;
-    if (sortBy === 'dist') return a.dist - b.dist;
-    return 0;
-  });
+  const sortedProducts = useMemo(() => {
+    return [...dbProducts].sort((a, b) => {
+      if (sortBy === 'price') return a.price - b.price;
+      if (sortBy === 'rating') return b.rating - a.rating;
+      if (sortBy === 'dist') return a.dist - b.dist;
+      return 0;
+    });
+  }, [dbProducts, sortBy]);
 
   return (
     <MainLayout title={isTa ? category : category}>
