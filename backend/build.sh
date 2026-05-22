@@ -14,3 +14,8 @@ echo "------------------"
 
 # Run migrations
 python manage.py migrate
+
+# Seed demo accounts for project evaluation
+echo "--- Seeding Demo Accounts ---"
+python seed_demo_accounts.py
+echo "--- Demo Seeding Done ---"
